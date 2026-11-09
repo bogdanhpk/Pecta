@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.20
+
 - Replaced the distorted Figma mark with its official monoline vector and reduced both connection-state logos for more space inside their circles.
 - Centered all inspector empty states horizontally and vertically below the header, with scrolling when the window is too short.
 - Simplified the Settings menu: removed Refresh properties, renamed Check for Updates, and placed the installed version beside About Pecta as a plain number.
