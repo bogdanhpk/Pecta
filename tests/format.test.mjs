@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {numberText,cssText,colorText,componentRows,componentItems,previewBackground,tokenBindings,layerBoxModel} from '../src/format.js';
+import {numberText,cssText,colorText,componentRows,componentItems,previewBackground,layerBoxModel} from '../src/format.js';
 test('CSS preserves actual names and values and does not copy unavailable results',()=>{
   assert.equal(cssText({status:'ok',value:{display:'flex','--radius':'8px',gap:'var(--space-2, 8px)'}}),'display: flex;\n--radius: 8px;\ngap: var(--space-2, 8px);');
   assert.equal(cssText({status:'timeout'}),'');assert.equal(cssText({status:'ok',value:{'bad;property':'x'}}),'');
@@ -9,9 +9,8 @@ test('geometry and colors retain useful precision without inventing missing valu
   assert.equal(numberText(52.77432),'52.77');assert.equal(numberText(undefined),'—');assert.equal(numberText(Symbol('mixed')),'—');
   assert.equal(colorText({type:'SOLID',color:{r:1,g:.5,b:0},opacity:.5}),'#FF8000 · 50%');
 });
-test('component variant and exposed property names stay readable and token binding names are kept',()=>{
-  assert.deepEqual(componentRows({variantProperties:{State:'Default'},componentProperties:{'Label#2:3':{value:'Subscribe'},'Icon#2:4':{value:true}}}),[['State','Default'],['Label','Subscribe'],['Icon','Да']]);
-  assert.equal(tokenBindings({boundVariables:{paddingLeft:{type:'VARIABLE_ALIAS',id:'a'},paddingRight:{type:'VARIABLE_ALIAS',id:'a'}}},'a'),'paddingLeft, paddingRight');
+test('component variant and exposed property names stay readable',()=>{
+  assert.deepEqual(componentRows({variantProperties:{State:'Default'},componentProperties:{'Label#2:3':{value:'Subscribe'},'Icon#2:4':{value:true}}}),[['State','Default'],['Label','Subscribe'],['Icon','Yes']]);
 });
 
 const boxFields={type:'FRAME',width:400,height:120,layoutMode:'HORIZONTAL',paddingTop:8,paddingRight:20,paddingBottom:12,paddingLeft:10,strokes:[{type:'SOLID'}],strokeWeight:4,strokeTopWeight:1,strokeRightWeight:2,strokeBottomWeight:3,strokeLeftWeight:4,strokeAlign:'INSIDE',strokesIncludedInLayout:true};

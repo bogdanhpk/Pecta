@@ -7,7 +7,7 @@ test('text diagram converts the actual size and line height, preserves percentag
  const model=textTypography(node,'rem');assert.equal(model.fontLabel,'0.875rem');assert.equal(model.lineLabel,'1.25rem');assert.equal(model.caption,'Text/Normal');assert.ok(model.lineGuide>model.fontGuide);
  const percent=textTypography({...node,fields:{...node.fields,lineHeight:{unit:'PERCENT',value:120}}},'rem');assert.equal(percent.lineLabel,'120%');assert.equal(percent.linePixels,16.8);
  const auto=textTypography({...node,fields:{...node.fields,lineHeight:{unit:'AUTO'}}});assert.equal(auto.lineLabel,'Auto');assert.equal(auto.linePixels,null);
- const mixed=textTypography({fields:{...node.fields,fontSize:'[mixed-or-symbol]',lineHeight:'[mixed-or-symbol]'},textStyle:{status:'mixed'}});assert.equal(mixed.fontLabel,'Смешано');assert.equal(mixed.fontCopy,'');assert.equal(mixed.lineCopy,'');assert.match(mixed.caption,/Смешанные/);
+ const mixed=textTypography({fields:{...node.fields,fontSize:'[mixed-or-symbol]',lineHeight:'[mixed-or-symbol]'},textStyle:{status:'mixed'}});assert.equal(mixed.fontLabel,'Mixed');assert.equal(mixed.fontCopy,'');assert.equal(mixed.lineCopy,'');assert.match(mixed.caption,/Mixed/);
 });
 test('text List has real style and token names, Fill/Hug, OpenType zero, modes and text color',()=>{
  const groups=layerPropertyGroups(node,'rem');assert.deepEqual(groups.map(group=>group.id),['layout','typography','modes','colors']);

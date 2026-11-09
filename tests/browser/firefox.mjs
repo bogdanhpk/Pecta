@@ -34,13 +34,13 @@ try {
  const tabId=await evaluate(control,"(async()=>(await browser.tabs.query({url:'https://www.figma.com/*'}))[0].id)()");
  await evaluate(control,`(async()=>{const bg=await browser.runtime.getBackgroundPage();bg.__iconWrites=[];const native=bg.browser.action.setIcon.bind(bg.browser.action);bg.browser.action.setIcon=async details=>{await native(details);bg.__iconWrites.push(details);};})()`);
  await cmd('browsingContext.activate',{context:fixture});
- await wait(control,`(async()=>(await browser.action.getTitle({tabId:${tabId}}))==='Pecta Mode — доступен в этом макете')()`);
+ await wait(control,`(async()=>(await browser.action.getTitle({tabId:${tabId}}))==='Pecta Mode — available in this file')()`);
  assert.equal(await evaluate(fixture,"!!document.getElementById('pecta-mode-root')"),false);
  await evaluate(fixture,'window.iconTestModel=window.figma;delete window.figma;');
- await wait(control,`(async()=>(await browser.action.getTitle({tabId:${tabId}}))==='Pecta Mode — откройте доступный макет Figma')()`);
+ await wait(control,`(async()=>(await browser.action.getTitle({tabId:${tabId}}))==='Pecta Mode — open an accessible Figma file')()`);
  assert.match(await evaluate(control,`(async()=>(await browser.runtime.getBackgroundPage()).__iconWrites.filter(item=>item.tabId===${tabId}).at(-1).path[16])()`),/unavailable-16/);
  await evaluate(fixture,'window.figma=window.iconTestModel;');
- await wait(control,`(async()=>(await browser.action.getTitle({tabId:${tabId}}))==='Pecta Mode — доступен в этом макете')()`);
+ await wait(control,`(async()=>(await browser.action.getTitle({tabId:${tabId}}))==='Pecta Mode — available in this file')()`);
  assert.match(await evaluate(control,`(async()=>(await browser.runtime.getBackgroundPage()).__iconWrites.filter(item=>item.tabId===${tabId}).at(-1).path[16])()`),/ready-16/);
  const futureVersion=manifest.version.split('.').map((value,index)=>Number(value)+(index===2?1:0)).join('.');
  const fixtureNotes='## Добавлено\n- Блок **«Что нового»** в обновлениях.\n- Просмотр описания перед скачиванием.';
@@ -60,20 +60,20 @@ try {
  await wait(fixture,`${root}?.querySelector('.css')?.textContent.includes('width: 216px')`);
  const updatesPage=(await cmd('browsingContext.create',{type:'tab'})).context;
  await cmd('browsingContext.navigate',{context:updatesPage,url:`moz-extension://${uuid}/updates.html`,wait:'complete'});
- await wait(updatesPage,`document.querySelector('#status').textContent.includes(${JSON.stringify('Доступна версия ')}+${JSON.stringify(futureVersion)})`);
+ await wait(updatesPage,`document.querySelector('#status').textContent.includes(${JSON.stringify('Version ')}+${JSON.stringify(futureVersion)})`);
  assert.equal(await evaluate(updatesPage,"document.querySelector('#download').getAttribute('href')"),`https://github.com/bogdanhpk/Pecta/releases/download/v${futureVersion}/pecta-mode-${futureVersion}-firefox.zip`);
  assert.match(await evaluate(updatesPage,"document.querySelector('#instructions').textContent"),/about:debugging/);
  assert.equal(await evaluate(updatesPage,"document.querySelector('#release-notes').hidden"),false);
  assert.equal(await evaluate(updatesPage,"document.querySelectorAll('#release-notes-body li').length"),2);
- assert.equal(await evaluate(updatesPage,"document.querySelector('#release-notes-title').textContent"),`Что нового в ${futureVersion}`);
+ assert.equal(await evaluate(updatesPage,"document.querySelector('#release-notes-title').textContent"),`What’s new in ${futureVersion}`);
 
  await cmd('browsingContext.close',{context:updatesPage});await cmd('browsingContext.activate',{context:fixture});
- assert.equal(await evaluate(fixture,`${root}.querySelector('.menu').textContent.includes('Диагностика доступа')`),false);
- assert.equal(await evaluate(fixture,`${root}.querySelector('.menu a[href$="about.html"]').textContent`),'О Pecta');
+ assert.equal(await evaluate(fixture,`${root}.querySelector('.menu').textContent.includes('Access diagnostics')`),false);
+ assert.equal(await evaluate(fixture,`${root}.querySelector('.menu a[href$="about.html"]').textContent`),'About Pecta');
  const aboutPage=(await cmd('browsingContext.create',{type:'tab'})).context;
  await cmd('browsingContext.navigate',{context:aboutPage,url:`moz-extension://${uuid}/about.html`,wait:'complete'});
- assert.equal(await evaluate(aboutPage,"document.querySelector('#creator-name').textContent"),'Богдан Хтоминский');
- assert.equal(await evaluate(aboutPage,"document.querySelector('#installed').textContent"),`Версия ${manifest.version}`);
+ assert.equal(await evaluate(aboutPage,"document.querySelector('#creator-name').textContent"),'Bogdan Khtominsky');
+ assert.equal(await evaluate(aboutPage,"document.querySelector('#installed').textContent"),`Version ${manifest.version}`);
  await cmd('browsingContext.close',{context:aboutPage});await cmd('browsingContext.activate',{context:fixture});
 
 
@@ -84,7 +84,8 @@ try {
  const layout=JSON.parse(await evaluate(fixture,`(()=>{const panel=${root}.querySelector('.panel');return JSON.stringify({top:panel.getBoundingClientRect().top,bottom:panel.getBoundingClientRect().bottom,height:innerHeight,font:getComputedStyle(panel).fontFamily,size:getComputedStyle(panel).fontSize,weight:getComputedStyle(panel).fontWeight});})()`));
  assert.equal(layout.top,0);assert.equal(layout.bottom,layout.height);assert.match(layout.font,/Pecta Inter/);assert.equal(layout.size,'12px');assert.equal(layout.weight,'400');
  assert.equal(await evaluate(fixture,`${root}.querySelector('.component-name').textContent`),'Actions / Button');
- assert.match(await evaluate(fixture,`${root}.querySelector('.token-name').textContent`),/Background/);
+ assert.equal(await evaluate(fixture,`${root}.querySelector('[data-property="fills.0"] .variable-name').textContent`),'Background/Brand');
+ assert.equal(await evaluate(fixture,`[...${root}.querySelectorAll('h2')].some(heading=>heading.textContent==='Tokens')`),false);
  try{await wait(fixture,`${root}.querySelector('.component-preview-canvas').hidden===false`);}catch(error){console.log({preview:await inject('ISOLATED',`()=>globalThis.__previewDebug`),status:await evaluate(fixture,`${root}.querySelector('.component-preview-status').textContent`),exports:await evaluate(fixture,'window.previewExports')});throw error;}
  assert.equal(await evaluate(fixture,`${root}.querySelector('.component-source').textContent`),'Meridian UI · 2026');
  assert.equal(await evaluate(fixture,`${root}.querySelector('.component-preview').dataset.background`),'light');
@@ -115,10 +116,10 @@ try {
  await wait(fixture,`!${corner}.dataset.copied`);
 
  await evaluate(fixture,`${root}.querySelector('#pecta-tab-code').click()`);
- await evaluate(fixture,`${root}.querySelector('[data-action="copy-css"]').click()`);await wait(fixture,`${root}.querySelector('[data-action="copy-css"]').textContent.includes('Скопировано')`);assert.match(await inject('ISOLATED',`()=>globalThis.__copied`),/width: 13.5rem/);
+ await evaluate(fixture,`${root}.querySelector('[data-action="copy-css"]').click()`);await wait(fixture,`${root}.querySelector('[data-action="copy-css"]').textContent.includes('Copied')`);assert.match(await inject('ISOLATED',`()=>globalThis.__copied`),/width: 13.5rem/);
  await evaluate(fixture,`(()=>{const select=${root}.querySelector('.unit-select');select.value='px';select.dispatchEvent(new Event('change',{bubbles:true}));})()`);
  await evaluate(fixture,`${root}.querySelector('[data-action="copy-css"]').click()`);
- await wait(fixture,`${root}.querySelector('[data-action="copy-css"]').textContent.includes('Скопировано')`);
+ await wait(fixture,`${root}.querySelector('[data-action="copy-css"]').textContent.includes('Copied')`);
  assert.match(await inject('ISOLATED',`()=>globalThis.__copied`),/width: 216px/);
 
  await evaluate(fixture,`figma.currentPage.selection=[makeNode({id:'white-artwork',name:'White artwork',previewTone:'transparent-white',variantProperties:null,componentProperties:{State:{type:'VARIANT',value:'Header'},Counter:{type:'BOOLEAN',value:false},'Right Button':{type:'BOOLEAN',value:true}}})]`);
@@ -148,7 +149,7 @@ try {
  await evaluate(fixture,`${root}.querySelector('.selection-color-swatch').click()`);await wait(fixture,`${root}.querySelector('.selection-color-swatch').dataset.copied==='true'`);
  assert.equal(await inject('ISOLATED',`()=>globalThis.__copied`),'#1E202C');
  await evaluate(fixture,`figma.currentPage.selection=[]`);await wait(fixture,`${root}.querySelector('.empty').hidden===false`);assert.equal(await evaluate(fixture,`${root}.querySelector('.section').closest('[hidden]')!==null`),true);
- await evaluate(fixture,`${root}.querySelector('button[aria-label="Закрыть Pecta Mode"]').click()`);await wait(fixture,"!document.getElementById('pecta-mode-root')&&!window.__PECTA_MODE_BRIDGE__");
+ await evaluate(fixture,`${root}.querySelector('button[aria-label="Close Pecta Mode"]').click()`);await wait(fixture,"!document.getElementById('pecta-mode-root')&&!window.__PECTA_MODE_BRIDGE__");
  await launch();await wait(fixture,`!!${root}`);await launch();await wait(fixture,"!document.getElementById('pecta-mode-root')&&!window.__PECTA_MODE_BRIDGE__");
  assert.deepEqual(errors,[]);console.log(JSON.stringify({passed:true,browser:session.capabilities.browserVersion,checks:['automatic toolbar availability before opening the panel','native blue/gray icon writes','loss and recovery of Figma access','full viewport height','bundled Inter and host serif styles','temporary extension installed','real scripting MAIN and ISOLATED','launcher toggle','CSS/components/tokens','inline copy','live updates','empty selection','close and re-enable cleanup']}));
 }finally{if(ws?.readyState===1){await cmd('session.end').catch(()=>{});ws.close();}child.kill();await writeFile(dir+'/browser.log',logs);}

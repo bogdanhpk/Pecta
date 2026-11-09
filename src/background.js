@@ -3,7 +3,7 @@ const api=globalThis.browser||globalThis.chrome;
 const updateService=globalThis.createPectaUpdateService?.(api);
 const epochs=new Map(),checks=new Map(),paintQueues=new Map(),states=new Map();
 let epochCounter=0;
-const titles={ready:'Pecta Mode — доступен в этом макете',unavailable:'Pecta Mode — откройте доступный макет Figma'};
+const titles={ready:'Pecta Mode — available in this file',unavailable:'Pecta Mode — open an accessible Figma file'};
 function figmaPage(value){
   try{const url=new URL(value);return url.protocol==='https:'&&['www.figma.com','figma.com'].includes(url.hostname)?url:null;}catch{return null;}
 }

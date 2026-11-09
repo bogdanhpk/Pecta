@@ -1,27 +1,27 @@
 import {componentItems,previewBackground} from './format.js';
 
-export function createComponentInformation({el,icon,copyButton,requestPreview}){
+export function createComponentInformation({el,icon,copyButton,selectControl,requestPreview}){
   const node=el('section','section component-information');
   const details=el('details','component-information-details');details.open=true;
-  details.append(el('summary','section-title','Информация о компоненте'));node.append(details);
+  const summary=el('summary','section-title disclosure-summary'),chevron=icon('caret-right');chevron.classList.add('disclosure-chevron');summary.append(chevron,el('span','disclosure-label','Component information'));details.append(summary);node.append(details);
   const name=el('div','component-name'),source=el('p','component-source'),description=el('p','component-description');
-  const stage=el('div','component-preview');stage.setAttribute('aria-label','Превью компонента');
+  const stage=el('div','component-preview');stage.setAttribute('aria-label','Component preview');
   const canvas=el('canvas','component-preview-canvas');canvas.hidden=true;canvas.setAttribute('role','img');
-  const previewLabel=el('span','component-preview-label','Просмотр варианта');previewLabel.hidden=true;stage.append(previewLabel);
-  const previewStatus=el('span','component-preview-status','Загружаем превью…');previewStatus.setAttribute('role','status');stage.append(canvas,previewStatus);
+  const previewLabel=el('span','component-preview-label','Variant preview');previewLabel.hidden=true;stage.append(previewLabel);
+  const previewStatus=el('span','component-preview-status','Loading preview…');previewStatus.setAttribute('role','status');stage.append(canvas,previewStatus);
   const propertyRows=el('dl','component-property-rows'),more=el('button','component-more');more.type='button';more.hidden=true;more.setAttribute('aria-expanded','false');
   const documentation=el('div','component-documentation');
-  const explore=el('button','component-explore','Посмотреть варианты');explore.type='button';explore.hidden=true;explore.setAttribute('aria-expanded','false');explore.setAttribute('aria-controls','pecta-component-variants');
+  const explore=el('button','component-explore','Explore variants');explore.type='button';explore.hidden=true;explore.setAttribute('aria-expanded','false');explore.setAttribute('aria-controls','pecta-component-variants');
   const playground=el('div','component-playground');playground.id='pecta-component-variants';playground.hidden=true;
-  const variantLabel=el('label','component-variant-label','Вариант'),variantSelect=el('select','component-variant-select');variantSelect.id='pecta-component-variant';variantLabel.htmlFor=variantSelect.id;
-  const variantStatus=el('p','hint'),variantRows=el('dl','component-property-rows');playground.append(variantLabel,variantSelect,variantStatus,variantRows);
+  const variantLabel=el('label','component-variant-label','Variant'),variantSelect=el('select','component-variant-select');variantSelect.id='pecta-component-variant';variantLabel.htmlFor=variantSelect.id;
+  const variantStatus=el('p','hint'),variantRows=el('dl','component-property-rows');playground.append(variantLabel,selectControl(variantSelect,'variant-control'),variantStatus,variantRows);
   const metadataStatus=el('p','hint');details.append(name,source,description,stage,propertyRows,more,documentation,explore,playground,metadataStatus);
   let current=null,rich=false,seq=-1,metadata=null,selectedId='',requestId=0,rowsKey='',variantKey='',linksKey='',expanded=false,lastPreviewAt=0,previewKey='',wantedKey='',paintGeneration=0;
   const text=(target,value)=>{if(target.textContent!==String(value))target.textContent=String(value);};
   function showPreviewStatus(message){paintGeneration++;canvas.hidden=true;previewStatus.hidden=false;text(previewStatus,message);stage.removeAttribute('aria-busy');delete stage.dataset.background;}
   function updateMore(){
     [...propertyRows.children].forEach((row,index)=>{row.hidden=index>=3&&!expanded;});
-    more.hidden=propertyRows.childElementCount<=3;more.setAttribute('aria-expanded',String(expanded));const count=propertyRows.childElementCount-3,form=count%10===1&&count%100!==11?'свойство':count%10>=2&&count%10<=4&&(count%100<12||count%100>14)?'свойства':'свойств';text(more,expanded?'Скрыть свойства':`Ещё ${count} ${form}`);
+    more.hidden=propertyRows.childElementCount<=3;more.setAttribute('aria-expanded',String(expanded));const count=propertyRows.childElementCount-3; text(more,expanded?'Hide properties':`${count} more ${count===1?'property':'properties'}`);
   }
   more.onclick=()=>{expanded=!expanded;updateMore();};
   function fillRows(target,fields){
@@ -29,7 +29,7 @@ export function createComponentInformation({el,icon,copyButton,requestPreview}){
     for(const item of rows){
       const {name:label,value,type,rawValue}=item;
       const row=el('div','component-property-row'),title=el('dt','',label),cell=el('dd');row.dataset.propertyType=type;
-      const copy=copyButton(()=>item.copy,`Копировать ${label}`,false,()=>{
+      const copy=copyButton(()=>item.copy,`Copy ${label}`,false,()=>{
         const content=document.createDocumentFragment();
         const iconName=type==='VARIANT'?'diamond-fill':type==='BOOLEAN'&&typeof rawValue==='boolean'?(rawValue?'toggle-right':'toggle-left'):null;
         if(iconName){
@@ -49,14 +49,14 @@ export function createComponentInformation({el,icon,copyButton,requestPreview}){
     const {id,name,width,height,fills,strokes,opacity,componentProperties,variantProperties}=current.fields;
     const key=JSON.stringify([id,variantId,variantId?null:{name,width,height,fills,strokes,opacity,componentProperties,variantProperties}]);
     if(!force&&previewKey===key&&Date.now()-lastPreviewAt<5000)return;
-    if(!metadata?.previewAvailable){showPreviewStatus('Превью недоступно');return;}
+    if(!metadata?.previewAvailable){showPreviewStatus('Preview unavailable');return;}
     previewKey=key;lastPreviewAt=Date.now();wantedKey=key;
-    if(force||canvas.hidden){showPreviewStatus('Загружаем превью…');stage.setAttribute('aria-busy','true');}
+    if(force||canvas.hidden){showPreviewStatus('Loading preview…');stage.setAttribute('aria-busy','true');}
     requestId++;requestPreview({nodeId:current.fields.id,variantId,requestId,seq});
-    canvas.setAttribute('aria-label',variantId?variantSelect.selectedOptions[0]?.textContent||'Вариант компонента':current.fields.name||'Компонент');
+    canvas.setAttribute('aria-label',variantId?variantSelect.selectedOptions[0]?.textContent||'Component variant':current.fields.name||'Component');
   }
   explore.onclick=()=>{
-    playground.hidden=!playground.hidden;explore.setAttribute('aria-expanded',String(!playground.hidden));text(explore,playground.hidden?'Посмотреть варианты':'Закрыть варианты');
+    playground.hidden=!playground.hidden;explore.setAttribute('aria-expanded',String(!playground.hidden));text(explore,playground.hidden?'Explore variants':'Close variants');
     if(!playground.hidden){fillRows(variantRows,variantFields());variantSelect.focus();}
     beginPreview(true);
   };
@@ -68,14 +68,14 @@ export function createComponentInformation({el,icon,copyButton,requestPreview}){
     current=next;rich=isRich;seq=version;
     if(selectedId!==fields.id){
       selectedId=fields.id;metadata=null;requestId++;paintGeneration++;rowsKey='';variantKey='';linksKey='';expanded=false;previewKey='';wantedKey='';lastPreviewAt=0;
-      playground.hidden=true;previewLabel.hidden=true;explore.setAttribute('aria-expanded','false');text(explore,'Посмотреть варианты');showPreviewStatus('Загружаем превью…');
+      playground.hidden=true;previewLabel.hidden=true;explore.setAttribute('aria-expanded','false');text(explore,'Explore variants');showPreviewStatus('Loading preview…');
     }
     if(isRich)metadata=next.component?.status==='ok'?next.component.value:null;
     const family=metadata?.componentSet?.name||metadata?.name||(fields.type!=='INSTANCE'?fields.name:null);
-    if(name.dataset.name!==(family||'')){name.dataset.name=family||'';name.replaceChildren(icon('diamond'),el('span','',family||'Компонент'));}
-    const sourceName=metadata?.sourceName||(metadata?.remote===true?'Библиотечный компонент':'');source.hidden=!sourceName;text(source,sourceName);
+    if(name.dataset.name!==(family||'')){name.dataset.name=family||'';name.replaceChildren(icon('diamond'),el('span','',family||'Component'));}
+    const sourceName=metadata?.sourceName||(metadata?.remote===true?'Library component':'');source.hidden=!sourceName;text(source,sourceName);
     description.hidden=!metadata?.description;text(description,metadata?.description||'');
-    metadataStatus.hidden=!!family;text(metadataStatus,!isRich?'Загружаем информацию…':next.component?.status==='timeout'?'Информация не получена вовремя.':'Информация о главном компоненте недоступна.');
+    metadataStatus.hidden=!!family;text(metadataStatus,!isRich?'Loading component information…':next.component?.status==='timeout'?'Component information did not load in time.':'Main component information is unavailable.');
     const propsFields={...fields};
     if(fields.type!=='INSTANCE'&&metadata?.propertyDefinitions){
       propsFields.componentProperties=Object.fromEntries(Object.entries(metadata.propertyDefinitions).map(([key,value])=>[key,{type:value.type,value:propsFields.variantProperties?.[key.replace(/#[^#]+$/,'')]??value.defaultValue}]));
@@ -89,15 +89,15 @@ export function createComponentInformation({el,icon,copyButton,requestPreview}){
       fillRows(variantRows,variantFields());
     }
     explore.hidden=variants.length<2;
-    if(explore.hidden&&!playground.hidden){playground.hidden=true;explore.setAttribute('aria-expanded','false');text(explore,'Посмотреть варианты');previewKey='';}
-    const omitted=Math.max(0,(metadata?.variantCount||0)-variants.length);variantStatus.hidden=!omitted;text(variantStatus,omitted?`Показаны ${variants.length} из ${metadata.variantCount} вариантов.`:'');
+    if(explore.hidden&&!playground.hidden){playground.hidden=true;explore.setAttribute('aria-expanded','false');text(explore,'Explore variants');previewKey='';}
+    const omitted=Math.max(0,(metadata?.variantCount||0)-variants.length);variantStatus.hidden=!omitted;text(variantStatus,omitted?`Showing ${variants.length} of ${metadata.variantCount} variants.`:'');
     const links=(metadata?.documentationLinks||[]).filter(item=>{try{return typeof item.uri==='string'&&item.uri.length<=2048&&['https:','http:'].includes(new URL(item.uri).protocol);}catch{return false;}}).slice(0,5),lkey=JSON.stringify(links);
-    if(lkey!==linksKey){linksKey=lkey;documentation.replaceChildren(...links.map((item,index)=>{const link=el('a','component-doc-link',links.length===1?'Документация':`Документация ${index+1}`);link.href=item.uri;link.target='_blank';link.rel='noopener noreferrer';return link;}));}documentation.hidden=!links.length;
-    if(isRich){if(!metadata)showPreviewStatus('Превью недоступно');else beginPreview();}
+    if(lkey!==linksKey){linksKey=lkey;documentation.replaceChildren(...links.map((item,index)=>{const link=el('a','component-doc-link',links.length===1?'Documentation':`Documentation ${index+1}`);link.href=item.uri;link.target='_blank';link.rel='noopener noreferrer';return link;}));}documentation.hidden=!links.length;
+    if(isRich){if(!metadata)showPreviewStatus('Preview unavailable');else beginPreview();}
   }
   async function acceptPreview(result){
     if(result?.requestId!==requestId||result.nodeId!==selectedId||!node.isConnected)return;
-    if(result.status!=='ok'){showPreviewStatus(result.status==='timeout'?'Не удалось загрузить превью вовремя.':result.status==='busy'?'Превью ещё загружается…':'Превью недоступно');return;}
+    if(result.status!=='ok'){showPreviewStatus(result.status==='timeout'?'Preview did not load in time.':result.status==='busy'?'Preview is still loading…':'Preview unavailable');return;}
     const key=wantedKey,generation=++paintGeneration;
     try{
       const bytes=result.bytes;
@@ -115,7 +115,7 @@ export function createComponentInformation({el,icon,copyButton,requestPreview}){
         const scale=Math.min(1,192/result.width,96/result.height);canvas.style.width=`${Math.max(1,result.width*scale)}px`;canvas.style.height=`${Math.max(1,result.height*scale)}px`;
         canvas.hidden=false;previewStatus.hidden=true;stage.removeAttribute('aria-busy');
       }finally{bitmap.close();}
-    }catch{if(generation===paintGeneration)showPreviewStatus('Превью недоступно');}
+    }catch{if(generation===paintGeneration)showPreviewStatus('Preview unavailable');}
   }
   function reset(){current=null;rich=false;selectedId='';metadata=null;requestId++;paintGeneration++;canvas.hidden=true;canvas.width=1;canvas.height=1;delete stage.dataset.background;}
   return{node,render,acceptPreview,reset};

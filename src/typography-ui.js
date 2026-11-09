@@ -10,7 +10,7 @@ export function createTypographyDiagram({el,copyButton}){
     const button=copyButton(()=>model?.[`${key}Copy`]||'',()=>`${label}: ${model?.[`${key}Label`]||'—'}`,true,()=>el('span','metric-label',model?.[`${key}Label`]||'—'));
     button.className=`typography-metric typography-${key}`;button.dataset.textMetric=key;stage.append(button);return button;
   }
-  const font=metric('font','Размер шрифта'),line=metric('line','Высота строки'),caption=el('figcaption','typography-caption');node.append(stage,caption);
+  const font=metric('font','Font size'),line=metric('line','Line height'),caption=el('figcaption','typography-caption');node.append(stage,caption);
   function render(current,unit){
     node.hidden=current.fields.type!=='TEXT';if(node.hidden)return;
     model=textTypography(current,unit);caption.textContent=model.caption;caption.title=model.caption;
@@ -18,9 +18,9 @@ export function createTypographyDiagram({el,copyButton}){
     fontGuide.dataset.known=String(model.fontPixels!==null);lineGuide.dataset.known=String(model.linePixels!==null);
     for(const [key,button] of [['font',font],['line',line]]){
       const label=button.querySelector('.metric-label');if(label)label.textContent=model[`${key}Label`];button.disabled=!model[`${key}Copy`];
-      if(!button.dataset.copied&&!button.dataset.error){button.title=`${key==='font'?'Размер шрифта':'Высота строки'}: ${model[`${key}Label`]}`;button.setAttribute('aria-label',button.title);}
+      if(!button.dataset.copied&&!button.dataset.error){button.title=`${key==='font'?'Font size':'Line height'}: ${model[`${key}Label`]}`;button.setAttribute('aria-label',button.title);}
     }
-    node.setAttribute('aria-label',`Типографика: ${model.fontLabel}, высота строки ${model.lineLabel}. ${model.caption}`);
+    node.setAttribute('aria-label',`Typography: ${model.fontLabel}, line height ${model.lineLabel}. ${model.caption}`);
   }
   return{node,render};
 }

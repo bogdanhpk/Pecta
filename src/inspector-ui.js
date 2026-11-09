@@ -11,7 +11,7 @@ export async function mountInspector(config, styles, icons, interFont) {
     globalThis.__PECTA_INTER_V4_1__ = face;
     void face.load().catch(error=>console.warn('Pecta font:',error));
   }
-  const host = document.createElement('div'); host.id = 'pecta-mode-root';
+  const host = document.createElement('div'); host.id = 'pecta-mode-root';host.lang='en';
   const shadow = host.attachShadow({mode:'open'});
   const sheet = new CSSStyleSheet(); sheet.replaceSync(styles); shadow.adoptedStyleSheets = [sheet];
   const timers = new Set(); const copyStates = new Map();
@@ -29,13 +29,14 @@ export async function mountInspector(config, styles, icons, interFont) {
     const node = build(icons[name]); node.setAttribute('fill','currentColor');node.setAttribute('aria-hidden','true');return node;
   }
   function iconButton(name,label) { const button=el('button','icon-button');button.type='button';button.title=label;button.setAttribute('aria-label',label);button.append(icon(name));return button; }
+  function selectControl(select,className){const control=el('span',`select-control ${className}`),chevron=icon('caret-right');chevron.classList.add('select-chevron');control.append(select,chevron);return control;}
   const send = type => window.postMessage({source:'pecta-mode',channel:config.channel,direction:'to-page',type},location.origin);
   function clearCopies() {
     copyEpoch++;
     for (const [button,record] of copyStates) { clearTimeout(record.timer);timers.delete(record.timer);record.reset(); }
     copyStates.clear();
   }
-  function copyButton(value, label='Копировать', overlay=false, idleRenderer=null) {
+  function copyButton(value, label='Copy', overlay=false, idleRenderer=null) {
     const button = el('button',overlay ? 'copy-overlay' : 'copy-button');button.type='button';
     const fixedFeedback=overlay&&typeof idleRenderer==='function';
     if(fixedFeedback)button.dataset.copyLayout='overlay';
@@ -56,13 +57,13 @@ export async function mountInspector(config, styles, icons, interFont) {
       try {
         await navigator.clipboard.writeText(text);
         if(closed||epoch!==copyEpoch||!button.isConnected)return;
-        feedback('check','Скопировано');
-        button.dataset.copied='true';button.title='Скопировано';button.setAttribute('aria-label','Скопировано');delete button.dataset.error;
+        feedback('check','Copied');
+        button.dataset.copied='true';button.title='Copied';button.setAttribute('aria-label','Copied');delete button.dataset.error;
       } catch {
         if(closed||epoch!==copyEpoch)return;
         delete button.dataset.copied;
-        feedback('x','Не скопировано');
-        button.dataset.error='true';button.title='Не удалось скопировать';button.setAttribute('aria-label','Не удалось скопировать');
+        feedback('x','Not copied');
+        button.dataset.error='true';button.title='Could not copy';button.setAttribute('aria-label','Could not copy');
       }
       const old=copyStates.get(button);if(old){clearTimeout(old.timer);timers.delete(old.timer);}
       const timer=setTimeout(()=>{reset();copyStates.delete(button);timers.delete(timer);},2000);
@@ -71,19 +72,19 @@ export async function mountInspector(config, styles, icons, interFont) {
     return button;
   }
   function section(title) { const node=el('section','section');const heading=el('h2','section-title',title);node.append(heading);return {node,heading}; }
-  const panel=el('aside','panel');panel.setAttribute('aria-label','Pecta Mode — свойства слоя');
-  const resize=el('div','resize');resize.tabIndex=0;resize.setAttribute('role','separator');resize.setAttribute('aria-orientation','vertical');resize.setAttribute('aria-label','Ширина панели Pecta');resize.setAttribute('aria-valuemin','240');resize.setAttribute('aria-valuemax','450');
+  const panel=el('aside','panel');panel.setAttribute('aria-label','Pecta Mode — layer properties');
+  const resize=el('div','resize');resize.tabIndex=0;resize.setAttribute('role','separator');resize.setAttribute('aria-orientation','vertical');resize.setAttribute('aria-label','Pecta panel width');resize.setAttribute('aria-valuemin','240');resize.setAttribute('aria-valuemax','450');
   const header=el('header','header');const mark=el('span','brand-mark');mark.append(icon('stack-simple'));
-  const menu=el('details');const menuSummary=el('summary','icon-button');menuSummary.title='Настройки';menuSummary.setAttribute('aria-label','Настройки');menuSummary.append(icon('dots-three'));
-  const menuItems=el('div','menu');const retry=el('button','','Обновить свойства');retry.type='button';retry.onclick=()=>{send('refresh');menu.open=false;};
-  const about=el('a','','О Pecta');about.href=api.runtime.getURL('about.html');about.target='_blank';about.rel='noopener noreferrer';
-  const updatesLink=el('a','','Проверить обновления');updatesLink.href=api.runtime.getURL('updates.html');updatesLink.target='_blank';updatesLink.rel='noopener noreferrer';
-  void api.runtime.sendMessage({type:'pecta:updates-check'}).then(result=>{if(!closed&&result?.status==='available')updatesLink.textContent=`Обновить до ${result.latestVersion}`;}).catch(()=>{});
+  const menu=el('details');const menuSummary=el('summary','icon-button');menuSummary.title='Settings';menuSummary.setAttribute('aria-label','Settings');menuSummary.append(icon('dots-three'));
+  const menuItems=el('div','menu');const retry=el('button','','Refresh properties');retry.type='button';retry.onclick=()=>{send('refresh');menu.open=false;};
+  const about=el('a','','About Pecta');about.href=api.runtime.getURL('about.html');about.target='_blank';about.rel='noopener noreferrer';
+  const updatesLink=el('a','','Check for updates');updatesLink.href=api.runtime.getURL('updates.html');updatesLink.target='_blank';updatesLink.rel='noopener noreferrer';
+  void api.runtime.sendMessage({type:'pecta:updates-check'}).then(result=>{if(!closed&&result?.status==='available')updatesLink.textContent=`Update to ${result.latestVersion}`;}).catch(()=>{});
   menuItems.append(retry,updatesLink,about,el('span','version',`Pecta ${config.extensionVersion}`));menu.append(menuSummary,menuItems);
-  const closeButton=iconButton('x','Закрыть Pecta Mode');header.append(mark,el('strong','brand','Pecta Mode'),menu,closeButton);
+  const closeButton=iconButton('x','Close Pecta Mode');header.append(mark,el('strong','brand','Pecta Mode'),menu,closeButton);
   const scroll=el('div','scroll');const empty=el('div','empty');const emptyIcon=el('div','empty-icon');
   const selectionIcon=el('span','selection-icon');selectionIcon.append(icon('stack-simple'));
-  const connectionIcon=el('span','connection-state');connectionIcon.hidden=true;connectionIcon.setAttribute('role','img');connectionIcon.setAttribute('aria-label','Нет соединения между Figma и Pecta');
+  const connectionIcon=el('span','connection-state');connectionIcon.hidden=true;connectionIcon.setAttribute('role','img');connectionIcon.setAttribute('aria-label','Figma and Pecta are disconnected');
   const svgPart=(tag,attributes)=>{const part=document.createElementNS('http://www.w3.org/2000/svg',tag);for(const [key,value] of Object.entries(attributes))part.setAttribute(key,value);return part;};
   const connectionDrawing=svgPart('svg',{viewBox:'0 0 160 80',class:'connection-illustration','aria-hidden':'true',fill:'none'});
   connectionDrawing.append(
@@ -101,26 +102,25 @@ export async function mountInspector(config, styles, icons, interFont) {
   const pectaMark=icon('stack-simple');pectaMark.classList.add('connection-logo-pecta');pectaMark.dataset.brand='pecta';
   for(const [key,value] of Object.entries({x:'123',y:'25.4',width:'26',height:'26'}))pectaMark.setAttribute(key,value);
   connectionDrawing.append(figmaMark,pectaMark);connectionIcon.append(connectionDrawing);emptyIcon.append(selectionIcon,connectionIcon);
-  const emptyTitle=el('p','empty-title','Выберите слой');const emptyHint=el('p','hint','Свойства, CSS и токены появятся здесь.');const reconnect=el('button','retry','Повторить');reconnect.hidden=true;reconnect.onclick=()=>send('refresh');empty.append(emptyIcon,emptyTitle,emptyHint,reconnect);
+  const emptyTitle=el('p','empty-title','Select a layer');const emptyHint=el('p','hint','Layer properties, CSS, and tokens will appear here.');const reconnect=el('button','retry','Retry');reconnect.hidden=true;reconnect.onclick=()=>send('refresh');empty.append(emptyIcon,emptyTitle,emptyHint,reconnect);
   const content=el('div');content.hidden=true;
   const identity=section('');identity.heading.remove();const type=el('span','layer-type');const name=el('h1','name');identity.node.append(type,name);
-  const geometry=section('Размер и положение');const dimensions=el('div','dimensions');const dimensionValues={};
+  const geometry=section('Size and position');const dimensions=el('div','dimensions');const dimensionValues={};
   for(const key of ['x','y','width','height']) {
     const label={x:'X',y:'Y',width:'W',height:'H'}[key];const item=el('div','dimension');const value=el('span','dimension-value');value.dataset.field=key;
-    const button=copyButton(()=>Number.isFinite(currentNode?.fields[key])?lengthUnit==='rem'?`${lengthText(currentNode.fields[key])}rem`:String(currentNode.fields[key]):'',`Копировать ${label}`,true);dimensionValues[key]={value,button};item.append(el('span','dimension-label',label),value,button);dimensions.append(item);
+    const button=copyButton(()=>Number.isFinite(currentNode?.fields[key])?lengthUnit==='rem'?`${lengthText(currentNode.fields[key])}rem`:String(currentNode.fields[key]):'',`Copy ${label}`,true);dimensionValues[key]={value,button};item.append(el('span','dimension-label',label),value,button);dimensions.append(item);
   } geometry.node.append(dimensions);
-  const css=section('CSS');const cssHeading=el('div','section-heading');cssHeading.append(css.heading);const cssCopy=copyButton(()=>cssText(currentNode?.css,lengthUnit));cssCopy.dataset.action='copy-css';cssHeading.append(cssCopy);const cssPre=el('pre','css');cssPre.tabIndex=0;const cssCode=el('code');cssPre.append(cssCode);const cssHint=el('p','hint');const cssRetry=el('button','retry','Повторить');cssRetry.onclick=()=>send('refresh');css.node.append(cssHeading,cssPre,cssHint,cssRetry);
-  const properties=createLayerProperties({el,copyButton,cssSection:css.node,getUnit:()=>lengthUnit,
+  const css=section('CSS');const cssHeading=el('div','section-heading');cssHeading.append(css.heading);const cssCopy=copyButton(()=>cssText(currentNode?.css,lengthUnit));cssCopy.dataset.action='copy-css';cssHeading.append(cssCopy);const cssPre=el('pre','css');cssPre.tabIndex=0;const cssCode=el('code');cssPre.append(cssCode);const cssHint=el('p','hint');const cssRetry=el('button','retry','Retry');cssRetry.onclick=()=>send('refresh');css.node.append(cssHeading,cssPre,cssHint,cssRetry);
+  const properties=createLayerProperties({el,icon,copyButton,selectControl,cssSection:css.node,getUnit:()=>lengthUnit,
     onUnitChange:value=>{lengthUnit=value;unitWasChanged=true;clearCopies();if(currentNode)render(currentNode,richReceived);void api.storage.local.set({lengthUnit}).catch(()=>{});},
     onViewChange:value=>{propertyViewWasChanged=true;void api.storage.local.set({propertyView:value}).catch(()=>{});},
     onColorFormatChange:value=>changeColorFormat(value)
   });
-  const component=createComponentInformation({el,icon,copyButton,requestPreview:request=>window.postMessage({source:'pecta-mode',channel:config.channel,direction:'to-page',type:'component-preview',...request},location.origin)});
-  const resources=createSelectionResources({el,icon,copyButton,getUnit:()=>lengthUnit,onColorFormatChange:changeColorFormat,requestAsset:request=>window.postMessage({source:'pecta-mode',channel:config.channel,direction:'to-page',type:'selection-asset',...request},location.origin)});
+  const component=createComponentInformation({el,icon,copyButton,selectControl,requestPreview:request=>window.postMessage({source:'pecta-mode',channel:config.channel,direction:'to-page',type:'component-preview',...request},location.origin)});
+  const resources=createSelectionResources({el,icon,copyButton,selectControl,getUnit:()=>lengthUnit,onColorFormatChange:changeColorFormat,requestAsset:request=>window.postMessage({source:'pecta-mode',channel:config.channel,direction:'to-page',type:'selection-asset',...request},location.origin)});
   function changeColorFormat(value){colorFormat=value;colorFormatWasChanged=true;clearCopies();properties.setColorFormat(value);resources.setColorFormat(value);void api.storage.local.set({colorFormat:value}).catch(()=>{});}
-  const textSection=section('Текст');const textHeading=el('div','section-heading');textHeading.append(textSection.heading);const textCopy=copyButton(()=>currentNode?.fields.characters);textHeading.append(textCopy);const textContent=el('p','text-content');const textHint=el('p','hint');textSection.node.append(textHeading,textContent,textHint);
-  const tokens=section('Токены');const tokenList=el('div');const tokenHint=el('p','hint');tokens.node.append(tokenList,tokenHint);
-  content.append(identity.node,geometry.node,component.node,properties.node,resources.node,textSection.node,tokens.node);scroll.append(empty,content);panel.append(resize,header,scroll);shadow.append(panel);
+  const textSection=section('Text');const textHeading=el('div','section-heading');textHeading.append(textSection.heading);const textCopy=copyButton(()=>currentNode?.fields.characters);textHeading.append(textCopy);const textContent=el('p','text-content');const textHint=el('p','hint');textSection.node.append(textHeading,textContent,textHint);
+  content.append(identity.node,geometry.node,component.node,properties.node,resources.node,textSection.node);scroll.append(empty,content);panel.append(resize,header,scroll);shadow.append(panel);
   const setText=(node,value)=>{if(node.textContent!==String(value))node.textContent=String(value);};
   function rows(container,items) {
     const signature=JSON.stringify(items);if(container.dataset.signature===signature)return;
@@ -149,37 +149,29 @@ export async function mountInspector(config, styles, icons, interFont) {
     const connectionFailed=!['select-a-layer','multiple-selection'].includes(verdict);
     connectionIcon.hidden=!connectionFailed;selectionIcon.hidden=connectionFailed;
     const messages={
-      'select-a-layer':['Выберите слой','Свойства, CSS и токены появятся здесь.'],
-      'multiple-selection':[`Выбрано слоёв: ${count}`,'Для просмотра свойств выберите один слой.'],
-      'no-figma-object':['Не удалось подключиться','Дождитесь загрузки Figma и повторите подключение.'],
-      'object-without-readable-selection':['Свойства пока недоступны','Попробуйте выбрать слой ещё раз.'],
-      'plugin-context-detected':['Обнаружен запущенный плагин','Закройте плагин Figma и повторите подключение.'],
-      'wrong-page':['Откройте макет Figma','Pecta Mode работает во вкладке с макетом.']
+      'select-a-layer':['Select a layer','Layer properties, CSS, and tokens will appear here.'],
+      'multiple-selection':[`${count} layers selected`,'Select one layer to inspect its properties.'],
+      'no-figma-object':['Could not connect','Wait for Figma to load, then try again.'],
+      'object-without-readable-selection':['Layer properties unavailable','Try selecting the layer again.'],
+      'plugin-context-detected':['Figma plugin detected','Close the Figma plugin and reconnect.'],
+      'wrong-page':['Open a Figma file','Pecta Mode works in an open Figma design file.']
     };
-    const [title,hint]=messages[verdict]||['Не удалось прочитать слой','Повторите подключение.'];
+    const [title,hint]=messages[verdict]||['Could not read the layer','Try connecting again.'];
     setText(emptyTitle,title);setText(emptyHint,hint);reconnect.hidden=['select-a-layer','multiple-selection','wrong-page'].includes(verdict);
   }
   function render(node,rich) {
     const f=node.fields;
-    setText(name,f.name||'Без имени');const types={FRAME:'Фрейм',SECTION:'Секция',INSTANCE:'Экземпляр',COMPONENT:'Компонент',COMPONENT_SET:'Набор компонентов',TEXT:'Текст',RECTANGLE:'Прямоугольник',GROUP:'Группа',VECTOR:'Вектор'};setText(type,types[f.type]||f.type||'Слой');
+    setText(name,f.name||'Untitled');const types={FRAME:'Frame',SECTION:'Section',INSTANCE:'Instance',COMPONENT:'Component',COMPONENT_SET:'Component set',TEXT:'Text',RECTANGLE:'Rectangle',GROUP:'Group',VECTOR:'Vector'};setText(type,types[f.type]||f.type||'Layer');
     for(const [key,item] of Object.entries(dimensionValues)){setText(item.value,lengthText(f[key]));item.value.title=`${lengthText(f[key])} ${lengthUnit}`;item.button.disabled=!Number.isFinite(f[key]);}
     properties.render(node,lengthUnit,rich);
     const cssValue=cssText(node.css,lengthUnit);cssCopy.disabled=!rich||node.css?.status!=='ok'||!cssValue;
     cssPre.hidden=!cssValue;renderCss(cssValue);
     const cssStatus=node.css?.status;
-    const cssMessage=!rich?'Загружаем CSS…':cssStatus==='ok'&&!cssValue?'Для этого слоя CSS не получен.':cssStatus==='timeout'?'Figma не вернула CSS вовремя.':cssStatus==='truncated'?'CSS превышает лимит просмотра. Копирование недоступно.':cssStatus==='error'?'Не удалось получить CSS.':cssStatus==='unavailable'?'CSS недоступен для этого слоя.':'';
+    const cssMessage=!rich?'Loading CSS…':cssStatus==='ok'&&!cssValue?'No CSS returned for this layer.':cssStatus==='timeout'?'Figma did not return CSS in time.':cssStatus==='truncated'?'CSS exceeds the preview limit. Copying is disabled.':cssStatus==='error'?'Could not load CSS.':cssStatus==='unavailable'?'CSS is unavailable for this layer.':'';
     setText(cssHint,cssMessage);cssHint.hidden=!cssMessage;cssHint.classList.toggle('loading',!rich);cssRetry.hidden=!rich||!['timeout','error'].includes(cssStatus);
     component.render(node,rich,currentSeq);
     resources.render(node,currentSeq);
-    textSection.node.hidden=typeof f.characters!=='string';setText(textContent,f.characters||'');textCopy.disabled=!f.characters||f.textTruncated;setText(textHint,f.textTruncated?'Показаны первые 32 768 символов. Копирование недоступно.':'');textHint.hidden=!f.textTruncated;
-    const records=node.variables||[];const tokenSignature=JSON.stringify([records.map(({id,status,value})=>({id,status,value})),f.boundVariables,f.fills,f.strokes]);
-    if(tokenList.dataset.signature!==tokenSignature){tokenList.dataset.signature=tokenSignature;tokenList.replaceChildren(...records.map(record=>{
-      const item=el('div','token');const body=el('div','token-content');const variable=record.value;
-      body.append(el('div','token-name',variable?.name||'Имя недоступно'),el('p','hint',tokenBindings(f,record.id)||variable?.resolvedType||record.id));
-      if(!variable?.name)body.append(el('p','hint',record.status==='timeout'?'Превышено время ожидания':'Не удалось прочитать переменную'));
-      item.append(body);if(variable?.name){const copy=copyButton(variable.name,`Копировать ${variable.name}`,true);copy.className='icon-button';item.append(copy);}return item;
-    }));}
-    const tokenMessage=!rich?'Загружаем привязки…':node.variableCoverage?.omitted?`Ещё привязок: ${node.variableCoverage.omitted}.` : !records.length?'У слоя нет доступных привязок к переменным.':'';setText(tokenHint,tokenMessage);tokenHint.hidden=!tokenMessage;
+    textSection.node.hidden=typeof f.characters!=='string';setText(textContent,f.characters||'');textCopy.disabled=!f.characters||f.textTruncated;setText(textHint,f.textTruncated?'Showing the first 32,768 characters. Copying is disabled.':'');textHint.hidden=!f.textTruncated;
   }
   function onMessage(event) {
     const data=event.data;

@@ -2,7 +2,7 @@ import {cssInUnit} from './units.js';
 
 export function numberText(value,precision=2) {
   const scale=10**precision;
-  return Number.isFinite(value) ? String(Math.round((value + Number.EPSILON) * scale) / scale) : value === '[mixed-or-symbol]' ? 'Смешано' : '—';
+  return Number.isFinite(value) ? String(Math.round((value + Number.EPSILON) * scale) / scale) : value === '[mixed-or-symbol]' ? 'Mixed' : '—';
 }
 export function cssText(result,unit='px') {
   if (!result || !['ok','truncated'].includes(result.status) || !result.value || typeof result.value !== 'object') return '';
@@ -11,7 +11,7 @@ export function cssText(result,unit='px') {
 }
 export function colorText(paint) {
   const c = paint?.color;
-  if (paint?.type !== 'SOLID' || !c || ![c.r,c.g,c.b].every(Number.isFinite)) return paint?.type === 'IMAGE' ? 'Изображение' : paint?.type?.startsWith('GRADIENT') ? 'Градиент' : 'Смешано';
+  if (paint?.type !== 'SOLID' || !c || ![c.r,c.g,c.b].every(Number.isFinite)) return paint?.type === 'IMAGE' ? 'Image' : paint?.type?.startsWith('GRADIENT') ? 'Gradient' : 'Mixed';
   const hex = [c.r,c.g,c.b].map(v=>Math.round(Math.min(1,Math.max(0,v))*255).toString(16).padStart(2,'0')).join('').toUpperCase();
   const alpha = (Number.isFinite(paint.opacity) ? paint.opacity : 1) * (Number.isFinite(c.a) ? c.a : 1);
   return `#${hex}` + (alpha < 1 ? ` · ${numberText(alpha*100)}%` : '');
@@ -29,7 +29,7 @@ export function componentItems(fields) {
   }));
 }
 export function componentRows(fields) {
-  return componentItems(fields).map(({name,rawValue,value})=>[name,typeof rawValue==='boolean'?(rawValue?'Да':'Нет'):value]);
+  return componentItems(fields).map(({name,rawValue,value})=>[name,typeof rawValue==='boolean'?(rawValue?'Yes':'No'):value]);
 }
 // Compare the rendered pixels against both surfaces, including their real alpha.
 export function previewBackground(pixels) {
@@ -50,17 +50,6 @@ export function previewBackground(pixels) {
   }
   return visible?candidates.reduce((best,candidate)=>candidate.score>best.score?candidate:best).name:null;
 }
-export function tokenBindings(fields, id) {
-  const labels = new Set();
-  function visit(value,path,depth=0) {
-    if (!value || typeof value !== 'object' || depth>7) return;
-    if (value.type==='VARIABLE_ALIAS' && value.id===id) { labels.add(path); return; }
-    for (const [key,item] of Object.entries(value)) visit(item, /^\d+$/.test(key) ? path : path ? `${path}.${key}` : key,depth+1);
-  }
-  visit(fields.boundVariables,'');visit(fields.fills,'fills');visit(fields.strokes,'strokes');
-  return [...labels].join(', ');
-}
-
 export function layerBoxModel(fields) {
   const sides=['top','right','bottom','left'];
   const measurable=value=>Number.isFinite(value)&&value>=0;

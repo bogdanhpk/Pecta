@@ -55,7 +55,7 @@ export async function readSelectionResources(options={}){
     if(candidate){
       const id=string(get(node,'id')),width=get(node,'width'),height=get(node,'height');
       if(id&&Number.isFinite(width)&&Number.isFinite(height)&&width>0&&height>0){
-        if(assets.length<assetLimit){const asset={id,name:string(get(node,'name'))||'Без имени',width,height,kind:image?'images':isAsset?'icons':'exports'};assets.push(asset);assetNodes.set(id,{node,root});}
+        if(assets.length<assetLimit){const asset={id,name:string(get(node,'name'))||'Untitled',width,height,kind:image?'images':isAsset?'icons':'exports'};assets.push(asset);assetNodes.set(id,{node,root});}
         else omittedAssets++;
       }
     }

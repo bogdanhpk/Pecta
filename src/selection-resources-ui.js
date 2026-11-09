@@ -2,14 +2,14 @@ import {textColor} from './typography.js';
 import {colorText,numberText,previewBackground} from './format.js';
 import {lengthValue} from './units.js';
 
-export function createSelectionResources({el,icon,copyButton,requestAsset,onColorFormatChange,getUnit}){
+export function createSelectionResources({el,icon,copyButton,selectControl,requestAsset,onColorFormatChange,getUnit}){
   const node=el('div','selection-resources');
   const colors=el('section','section selection-colors'),heading=el('div','section-heading');heading.append(el('h2','section-title','Colors'));
-  const formatSelect=el('select','color-format');formatSelect.setAttribute('aria-label','Формат цветов выделения');
-  for(const [value,label] of [['hex','Hex'],['rgb','RGB'],['hsl','HSL']]){const option=el('option','',label);option.value=value;formatSelect.append(option);}heading.append(formatSelect);
+  const formatSelect=el('select','color-format');formatSelect.setAttribute('aria-label','Selection color format');
+  for(const [value,label] of [['hex','Hex'],['rgb','RGB'],['hsl','HSL']]){const option=el('option','',label);option.value=value;formatSelect.append(option);}heading.append(selectControl(formatSelect,'color-control'));
   const colorList=el('div','selection-color-list'),colorHint=el('p','hint'),coverage=el('p','hint resources-coverage');
   colors.append(heading,el('p','hint selection-colors-label','Selection colors'),colorList,colorHint);
-  const assetsSection=el('section','section selection-assets'),details=el('details','assets-details');details.open=true;details.append(el('summary','section-title','Assets'));
+  const assetsSection=el('section','section selection-assets'),details=el('details','assets-details');details.open=true;const summary=el('summary','section-title disclosure-summary'),chevron=icon('caret-right');chevron.classList.add('disclosure-chevron');summary.append(chevron,el('span','disclosure-label','Assets'));details.append(summary);
   const assetList=el('div','asset-groups'),assetHint=el('p','hint');details.append(assetList,assetHint);assetsSection.append(details);node.append(colors,assetsSection,coverage);
   let current=null,seq=-1,report=null,format='hex',requestId=0,colorKey='',assetKey='',generation=0;
   const cards=new Map(),requests=new Map(),urls=new Set(),timers=new Set();
@@ -31,15 +31,15 @@ export function createSelectionResources({el,icon,copyButton,requestAsset,onColo
     const fragment=document.createDocumentFragment();
     for(const item of report?.colors||[]){
       const color=textColor(item.paint,format),name=item.name||color?.value||colorText(item.paint),row=el('div','selection-color-row');row.dataset.colorName=item.name||'';
-      const swatch=copyButton(()=>color?.value||'',`Копировать цвет · ${color?.value||name}`,true,()=>{const mark=el('span','metric-label property-swatch');if(color)mark.style.setProperty('--swatch-color',color.swatch);else mark.textContent='◈';return mark;});
+      const swatch=copyButton(()=>color?.value||'',`Copy color · ${color?.value||name}`,true,()=>{const mark=el('span','metric-label property-swatch');if(color)mark.style.setProperty('--swatch-color',color.swatch);else mark.textContent='◈';return mark;});
       swatch.className='property-color-copy selection-color-swatch';swatch.disabled=!color;swatch.dataset.colorValue=color?.value||'';
-      const label=copyButton(()=>item.name||color?.value||'',`Копировать ${name}`,false,()=>el('span','selection-color-name',name));label.className='property-value';label.title=color?`${name} · ${color.value}`:name;label.disabled=!item.name&&!color;
+      const label=copyButton(()=>item.name||color?.value||'',`Copy ${name}`,false,()=>el('span','selection-color-name',name));label.className='property-value';label.title=color?`${name} · ${color.value}`:name;label.disabled=!item.name&&!color;
       row.append(swatch,label);fragment.append(row);
     }
     colorList.replaceChildren(fragment);
   }
   function download(card,exportFormat){
-    if(card.downloading)return;card.downloading=true;card.menu.open=false;card.message.hidden=false;text(card.message,'Готовим файл…');sendAsset(card,false,exportFormat);
+    if(card.downloading)return;card.downloading=true;card.menu.open=false;card.message.hidden=false;text(card.message,'Preparing file…');sendAsset(card,false,exportFormat);
   }
   function renderAssets(){
     const unit=getUnit(),key=JSON.stringify([report?.assets,unit]);
@@ -51,12 +51,12 @@ export function createSelectionResources({el,icon,copyButton,requestAsset,onColo
         for(const asset of assets){
           const row=el('div','asset-row');row.dataset.assetId=asset.id;
           const stage=el('div','asset-preview'),canvas=el('canvas','asset-preview-canvas'),status=el('span','asset-preview-status','…');canvas.hidden=true;canvas.setAttribute('role','img');canvas.setAttribute('aria-label',asset.name);stage.append(canvas,status);
-          const body=el('div','asset-body');const name=copyButton(()=>asset.name,`Копировать ${asset.name}`,false,()=>el('span','asset-name',asset.name));name.className='property-value asset-name-button';name.title=asset.name;
+          const body=el('div','asset-body');const name=copyButton(()=>asset.name,`Copy ${asset.name}`,false,()=>el('span','asset-name',asset.name));name.className='property-value asset-name-button';name.title=asset.name;
           const size=el('p','hint asset-size',`${numberText(lengthValue(asset.width,unit),6)} × ${numberText(lengthValue(asset.height,unit),6)} (${unit})`),message=el('p','hint asset-message');message.hidden=true;message.setAttribute('role','status');body.append(name,size,message);
-          const menu=el('details','asset-menu'),summary=el('summary','icon-button');summary.title=`Скачать ${asset.name}`;summary.setAttribute('aria-label',summary.title);summary.append(icon('dots-three'));menu.append(summary);
+          const menu=el('details','asset-menu'),summary=el('summary','icon-button');summary.title=`Download ${asset.name}`;summary.setAttribute('aria-label',summary.title);summary.append(icon('dots-three'));menu.append(summary);
           const actions=el('div','menu asset-actions');menu.append(actions);
           const card={asset,row,stage,canvas,status,message,menu,visible:false,pending:false,downloading:false,lastPreviewAt:0};cards.set(asset.id,card);
-          for(const exportFormat of (kind==='icons'?['PNG','SVG']:['PNG'])){const action=el('button','',`Скачать ${exportFormat}`);action.type='button';action.onclick=()=>download(card,exportFormat);actions.append(action);}
+          for(const exportFormat of (kind==='icons'?['PNG','SVG']:['PNG'])){const action=el('button','',`Download ${exportFormat}`);action.type='button';action.onclick=()=>download(card,exportFormat);actions.append(action);}
           row.append(stage,body,menu);group.append(row);observer.observe(row);
         }
         fragment.append(group);
@@ -69,15 +69,15 @@ export function createSelectionResources({el,icon,copyButton,requestAsset,onColo
     if(!current)return;
     colors.hidden=current.fields.type==='TEXT';
     const ready=report?.status==='ok',failed=report&&report.status!=='ok';
-    colorHint.hidden=ready&&report.colors.length>0;text(colorHint,!report?'Загружаем цвета…':failed?'Не удалось прочитать цвета.':'Нет доступных цветов.');
+    colorHint.hidden=ready&&report.colors.length>0;text(colorHint,!report?'Loading colors…':failed?'Could not load colors.':'No colors available.');
     if(ready){renderColors();renderAssets();}
     assetsSection.hidden=ready&&!report.assets.length;
-    assetHint.hidden=ready;text(assetHint,!report?'Ищем ресурсы…':'Не удалось прочитать ресурсы.');
+    assetHint.hidden=ready;text(assetHint,!report?'Finding assets…':'Could not load assets.');
     const c=report?.coverage,notes=[];
-    if(c?.truncated)notes.push(`Проверены первые ${c.visited} слоёв выбранного блока.`);
-    if(c?.omittedColors)notes.push(`Список цветов ограничен: ${report.colors.length}.`);
-    if(c?.omittedAssets)notes.push(`Ресурсов за пределами списка: ${c.omittedAssets}.`);
-    if(c?.unreadable)notes.push('Часть свойств недоступна.');
+    if(c?.truncated)notes.push(`Showing the first ${c.visited} layers in the selection.`);
+    if(c?.omittedColors)notes.push(`Color list limited to ${report.colors.length} entries.`);
+    if(c?.omittedAssets)notes.push(`${c.omittedAssets} more assets not shown.`);
+    if(c?.unreadable)notes.push('Some properties are unavailable.');
     text(coverage,notes.join(' '));coverage.hidden=!notes.length;
   }
   function render(next,nextSeq){
@@ -94,8 +94,8 @@ export function createSelectionResources({el,icon,copyButton,requestAsset,onColo
     if(!current||request.seq!==seq||request.generation!==generation||result.nodeId!==current.fields.id||!card.row.isConnected)return;
     if(preview)card.pending=false;else card.downloading=false;
     if(result.status!=='ok'){
-      const message=result.status==='too-large'?'Файл превышает лимит.':result.status==='timeout'?'Figma не ответила вовремя.':result.status==='busy'?'Экспорт занят. Повторите скачивание.':'Не удалось получить файл.';
-      if(preview){if(card.canvas.hidden)showStatus(card,result.status==='busy'?'…':'Нет превью');}else{card.message.hidden=false;text(card.message,message);}return;
+      const message=result.status==='too-large'?'File exceeds the export limit.':result.status==='timeout'?'Figma did not respond in time.':result.status==='busy'?'Export is busy. Try downloading again.':'Could not export the file.';
+      if(preview){if(card.canvas.hidden)showStatus(card,result.status==='busy'?'…':'No preview');}else{card.message.hidden=false;text(card.message,message);}return;
     }
     try{
       if(!ArrayBuffer.isView(result.bytes)||Object.prototype.toString.call(result.bytes)!=='[object Uint8Array]'||result.bytes.length>(preview?524288:8388608))throw Error('Invalid image');
@@ -112,7 +112,7 @@ export function createSelectionResources({el,icon,copyButton,requestAsset,onColo
         const sample=el('canvas');sample.width=Math.min(bitmap.width,32);sample.height=Math.min(bitmap.height,32);const sampleContext=sample.getContext('2d',{willReadFrequently:true});sampleContext.drawImage(bitmap,0,0,sample.width,sample.height);
         card.stage.dataset.background=previewBackground(sampleContext.getImageData(0,0,sample.width,sample.height).data)||'light';card.canvas.hidden=false;card.status.hidden=true;
       }finally{bitmap.close();}
-    }catch{if(preview)showStatus(card,'Нет превью');else{card.message.hidden=false;text(card.message,'Не удалось получить файл.');}}
+    }catch{if(preview)showStatus(card,'No preview');else{card.message.hidden=false;text(card.message,'Could not export the file.');}}
   }
   function reset(){generation++;current=null;report=null;colorKey='';assetKey='';observer.disconnect();cards.clear();requests.clear();colorList.replaceChildren();assetList.replaceChildren();}
   function close(){reset();for(const url of urls)URL.revokeObjectURL(url);urls.clear();for(const timer of timers)clearTimeout(timer);timers.clear();}

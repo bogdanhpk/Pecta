@@ -1,5 +1,12 @@
 # История изменений
 
+## Unreleased
+
+- Translated the inspector, launcher, About, Updates, diagnostics, and accessibility labels into English. Figma names and content keep their original language.
+- Aligned select labels and chevrons, with tighter spacing in color format controls.
+- Added section chevrons with a 4 px gap: right when collapsed, down when expanded.
+- Removed the standalone Tokens section and internal binding paths. Token names remain next to their properties in Layout, Typography, and Colors.
+
 ## 0.3.18
 
 - Добавлены Colors / Selection colors для выбранного блока и Assets с превью, исходными названиями и размерами ресурсов. В меню ресурса доступны PNG и SVG для иконок.

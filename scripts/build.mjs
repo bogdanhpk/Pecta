@@ -9,11 +9,11 @@ const manifest = {
   manifest_version: 3,
   name: 'Pecta Mode',
   version,
-  description: 'Свойства слоя, CSS, токены и компоненты прямо в открытой Figma.',
+  description: 'Inspect layer properties, CSS, tokens, and components directly in Figma.',
   permissions: ['activeTab', 'scripting', 'storage', 'clipboardWrite'],
   host_permissions: ['https://www.figma.com/*','https://figma.com/*','https://api.github.com/*'],
   icons:defaultIcon,
-  action: { default_title: 'Pecta Mode — откройте доступный макет Figma', default_popup: 'launcher.html',default_icon:defaultIcon },
+  action: { default_title: 'Pecta Mode — open an accessible Figma file', default_popup: 'launcher.html',default_icon:defaultIcon },
   content_scripts:[{matches:['https://www.figma.com/*','https://figma.com/*'],js:['availability.js'],run_at:'document_idle',all_frames:false}],
   options_ui: { page:'popup.html', open_in_tab:true },
   web_accessible_resources: [{resources:['popup.html','updates.html','about.html'],matches:['https://www.figma.com/*','https://figma.com/*']}]

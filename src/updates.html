@@ -1,19 +1,19 @@
 <!doctype html>
-<html lang="ru">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pecta · Обновления</title><link rel="stylesheet" href="updates.css"></head>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pecta · Updates</title><link rel="stylesheet" href="updates.css"></head>
 <body>
   <main>
     <header><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m3 12 13-8 13 8-13 8L3 12Zm0 8 13 8 13-8" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg><span>Pecta Mode</span><span id="installed"></span></header>
-    <h1>Обновления</h1>
-    <p id="status" role="status" aria-live="polite">Проверяем последнюю сборку…</p>
+    <h1>Updates</h1>
+    <p id="status" role="status" aria-live="polite">Checking for updates…</p>
     <section id="release-notes" aria-labelledby="release-notes-title" hidden>
-      <h2 id="release-notes-title">Что нового</h2>
+      <h2 id="release-notes-title">What’s new</h2>
       <div id="release-notes-body" class="release-notes-body" tabindex="0"></div>
-      <p id="release-notes-truncated" class="hint" hidden>Показана часть описания. <a id="release-notes-link" target="_blank" rel="noopener noreferrer">Читать полностью на GitHub</a></p>
+      <p id="release-notes-truncated" class="hint" hidden>Showing part of the release notes. <a id="release-notes-link" target="_blank" rel="noopener noreferrer">Read the full release notes on GitHub</a></p>
     </section>
-    <div class="actions"><a id="download" class="button primary" hidden>Скачать обновление</a><button id="check" type="button" disabled>Проверить ещё раз</button><a id="release" target="_blank" rel="noopener noreferrer">Релизы на GitHub</a></div>
-    <section aria-labelledby="instructions-title"><h2 id="instructions-title">Как обновить</h2><ol id="instructions"></ol><p id="installation-note" class="hint"></p></section>
-    <p class="hint">Проверка обращается только к репозиторию Pecta. Содержимое макета в GitHub не передаётся.</p>
+    <div class="actions"><a id="download" class="button primary" hidden>Download update</a><button id="check" type="button" disabled>Check again</button><a id="release" target="_blank" rel="noopener noreferrer">Releases on GitHub</a></div>
+    <section aria-labelledby="instructions-title"><h2 id="instructions-title">How to update</h2><ol id="instructions"></ol><p id="installation-note" class="hint"></p></section>
+    <p class="hint">Update checks only contact the Pecta repository. Design data is never sent to GitHub.</p>
   </main>
   <script type="module" src="updates-page.js"></script>
 </body>

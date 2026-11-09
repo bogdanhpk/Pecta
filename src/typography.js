@@ -13,7 +13,7 @@ export function textTypography(node,unit='px'){
   else if(valid(line?.value??line)){linePixels=line?.value??line;lineLabel=length(linePixels);lineCopy=lineLabel;}
   else lineLabel=numberText(line);
   const styleName=style?.status==='ok'&&style.value?.name?style.value.name:null;
-  const caption=styleName||(['mixed','[mixed-or-symbol]'].includes(style?.status)||f.textStyleId==='[mixed-or-symbol]'?'Смешанные текстовые стили':style?.status==='pending'&&f.textStyleId?'Загружаем стиль…':f.textStyleId?'Имя стиля недоступно':'Без текстового стиля');
+  const caption=styleName||(['mixed','[mixed-or-symbol]'].includes(style?.status)||f.textStyleId==='[mixed-or-symbol]'?'Mixed text styles':style?.status==='pending'&&f.textStyleId?'Loading text style…':f.textStyleId?'Style name unavailable':'No text style');
   const scale=76/Math.max(fontPixels||56,linePixels||76);
   return{fontPixels,linePixels,fontLabel,lineLabel,fontCopy:fontPixels===null?'':fontLabel,lineCopy,styleName,caption,fontGuide:fontPixels===null?56:Math.max(1,fontPixels*scale),lineGuide:linePixels===null?76:Math.max(1,linePixels*scale)};
 }

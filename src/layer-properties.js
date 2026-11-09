@@ -97,8 +97,8 @@ export function layerPropertyGroups(node,unit='px',colorFormat='hex'){
   }
   if(f.type==='TEXT'){
     const target=group('typography','Typography'),model=textTypography(node,unit);
-    add(target,'textStyleName','Name',model.styleName||(node.textStyle?.status==='mixed'?'Смешано':'—'),{bindings:[],copy:model.styleName});
-    const family=f.fontName&&typeof f.fontName==='object'?f.fontName.family:f.fontName==='[mixed-or-symbol]'?'Смешано':'—';
+    add(target,'textStyleName','Name',model.styleName||(node.textStyle?.status==='mixed'?'Mixed':'—'),{bindings:[],copy:model.styleName});
+    const family=f.fontName&&typeof f.fontName==='object'?f.fontName.family:f.fontName==='[mixed-or-symbol]'?'Mixed':'—';
     add(target,'fontFamily','Font',family,{copy:typeof f.fontName?.family==='string'?family:null});
     if(f.fontWeight!==undefined)add(target,'fontWeight','Weight',Number.isFinite(f.fontWeight)?String(f.fontWeight):numberText(f.fontWeight),{copy:Number.isFinite(f.fontWeight)?String(f.fontWeight):null});
     if(f.fontName?.style)add(target,'fontStyle','Style',f.fontName.style);
@@ -106,7 +106,7 @@ export function layerPropertyGroups(node,unit='px',colorFormat='hex'){
     add(target,'lineHeight','Line height',model.lineLabel,{copy:model.lineCopy||null});
     const spacing=f.letterSpacing,spacingValue=spacing?.unit==='PERCENT'?`${numberText(spacing.value)}%`:dimension(spacing?.value??spacing);
     add(target,'letterSpacing','Letter spacing',spacingValue,{copy:Number.isFinite(spacing?.value??spacing)?spacingValue:null});
-    if(f.openTypeFeatures==='[mixed-or-symbol]')add(target,'numericZero','Numeric zero','Смешано',{bindings:[],copy:null});
+    if(f.openTypeFeatures==='[mixed-or-symbol]')add(target,'numericZero','Numeric zero','Mixed',{bindings:[],copy:null});
     else if(typeof f.openTypeFeatures?.ZERO==='boolean')add(target,'numericZero','Numeric zero',f.openTypeFeatures.ZERO?'Slashed':'Normal',{bindings:[]});
     if(f.textAlignHorizontal)add(target,'textAlignHorizontal','Align',f.textAlignHorizontal.toLowerCase());
     if(f.textDecoration&&f.textDecoration!=='NONE')add(target,'textDecoration','Decoration',f.textDecoration.toLowerCase());
@@ -114,8 +114,8 @@ export function layerPropertyGroups(node,unit='px',colorFormat='hex'){
     const entries=node.variableModes?.entries||[];
     if(entries.length){
       const modes=group('modes','Modes');
-      for(const entry of entries)add(modes,`mode.${entry.id}`,entry.collectionName||'Коллекция недоступна',entry.modeName?(entry.explicit?entry.modeName:`Auto (${entry.modeName})`):'Режим недоступен',{bindings:[],copy:entry.modeName||null});
-      if(node.variableModes.omitted)add(modes,'modes.omitted','Ещё коллекций',String(node.variableModes.omitted),{bindings:[],copy:null});
+      for(const entry of entries)add(modes,`mode.${entry.id}`,entry.collectionName||'Collection unavailable',entry.modeName?(entry.explicit?entry.modeName:`Auto (${entry.modeName})`):'Mode unavailable',{bindings:[],copy:entry.modeName||null});
+      if(node.variableModes.omitted)add(modes,'modes.omitted','More collections',String(node.variableModes.omitted),{bindings:[],copy:null});
     }
     const paints=Array.isArray(f.fills)?f.fills.filter(paint=>paint.visible!==false):[];
     if(paints.length){
