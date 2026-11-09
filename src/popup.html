@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="ru">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pecta · Проверка доступа</title><link rel="stylesheet" href="popup.css"></head>
+<body>
+  <header><strong>Pecta</strong><span>Проверка доступа к макету</span><span id="version"></span></header>
+  <main>
+    <p>Откройте макет и выберите слой. Плагины Figma должны быть закрыты.</p>
+    <div class="actions"><button id="snapshot" type="button">Проверить слой</button><button id="observe" type="button">Наблюдать 20 с</button></div>
+    <p class="hint">Включите наблюдение, переключитесь на макет и выберите другой слой. Вернитесь на эту страницу и нажмите «Обновить».</p>
+    <div id="status" role="status" aria-live="polite">Готово к проверке</div>
+    <dl id="summary" hidden></dl>
+    <details id="details" hidden><summary>Данные проверки</summary><pre id="report"></pre></details>
+    <div class="secondary-actions"><button id="refresh" type="button">Обновить</button><button id="stop" type="button" disabled>Остановить</button><button id="download" type="button" disabled>Скачать JSON</button></div>
+    <p class="hint">Проверяется основной контекст страницы. Отрицательный результат ещё не исключает другие способы подключения. Данные остаются в браузере.</p>
+  </main>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

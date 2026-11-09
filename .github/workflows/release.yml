@@ -1,0 +1,40 @@
+name: Build and release
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: pecta-release
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - run: npm test
+      - run: npm run package
+      - name: Verify archives
+        run: |
+          python3 - <<'PY'
+          import json,zipfile
+          version=json.load(open('package.json'))['version']
+          for browser in ('chrome','firefox'):
+              with zipfile.ZipFile(f'releases/pecta-mode-{version}-{browser}.zip') as archive:
+                  assert archive.testzip() is None
+                  assert json.loads(archive.read(f'{browser}/manifest.json'))['version']==version
+          PY
+      - name: Publish GitHub release
+        run: npm run publish:release
+        env:
+          GH_TOKEN: ${{ github.token }}
