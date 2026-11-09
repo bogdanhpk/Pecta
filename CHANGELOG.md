@@ -1,6 +1,6 @@
 # История изменений
 
-## Unreleased
+## 0.3.19
 
 - Translated the inspector, launcher, About, Updates, diagnostics, and accessibility labels into English. Figma names and content keep their original language.
 - Aligned select labels and chevrons, with tighter spacing in color format controls.
