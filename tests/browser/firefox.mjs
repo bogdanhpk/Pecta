@@ -58,6 +58,13 @@ try {
  await inject('ISOLATED',`()=>{window.addEventListener('message',event=>{if(event.data?.type==='component-preview'&&event.data.direction==='from-page'){const value=event.data.report;globalThis.__previewDebug={status:value.status,isArray:value.bytes instanceof Uint8Array,view:ArrayBuffer.isView(value.bytes),type:Object.prototype.toString.call(value.bytes),length:value.bytes?.length};}});return true;}`);
  await launch();await cmd('browsingContext.activate',{context:fixture});
  await wait(fixture,`${root}?.querySelector('.css')?.textContent.includes('width: 216px')`);
+ await wait(fixture,`${root}.querySelector('.settings-update-dot').hidden===false`);
+ assert.equal(await evaluate(fixture,`${root}.querySelector('.updates-link').textContent`),'Check for Updates');
+ await evaluate(fixture,`${root}.querySelector('.header details>summary').click()`);await wait(fixture,`${root}.querySelector('.settings-update-dot').hidden===true`);
+ assert.equal(await evaluate(fixture,`${root}.querySelectorAll('.menu button,.menu .version').length`),0);assert.equal(await evaluate(fixture,`${root}.querySelector('.menu-about-link .menu-version').textContent`),manifest.version);
+ assert.equal(await evaluate(fixture,`${root}.querySelector('.updates-item-dot').hidden`),false);
+ await wait(control,`(async()=>(await browser.storage.local.get('pectaSeenUpdateVersion')).pectaSeenUpdateVersion===${JSON.stringify(futureVersion)})()`);
+ await evaluate(fixture,`${root}.querySelector('.header details>summary').click()`);assert.equal(await evaluate(fixture,`${root}.querySelector('.settings-update-dot').hidden`),true);
  const updatesPage=(await cmd('browsingContext.create',{type:'tab'})).context;
  await cmd('browsingContext.navigate',{context:updatesPage,url:`moz-extension://${uuid}/updates.html`,wait:'complete'});
  await wait(updatesPage,`document.querySelector('#status').textContent.includes(${JSON.stringify('Version ')}+${JSON.stringify(futureVersion)})`);
@@ -69,7 +76,7 @@ try {
 
  await cmd('browsingContext.close',{context:updatesPage});await cmd('browsingContext.activate',{context:fixture});
  assert.equal(await evaluate(fixture,`${root}.querySelector('.menu').textContent.includes('Access diagnostics')`),false);
- assert.equal(await evaluate(fixture,`${root}.querySelector('.menu a[href$="about.html"]').textContent`),'About Pecta');
+ assert.equal(await evaluate(fixture,`${root}.querySelector('.menu a[href$="about.html"]').getAttribute('aria-label')`),'About Pecta');
  const aboutPage=(await cmd('browsingContext.create',{type:'tab'})).context;
  await cmd('browsingContext.navigate',{context:aboutPage,url:`moz-extension://${uuid}/about.html`,wait:'complete'});
  assert.equal(await evaluate(aboutPage,"document.querySelector('#creator-name').textContent"),'Bogdan Khtominsky');
@@ -150,6 +157,6 @@ try {
  assert.equal(await inject('ISOLATED',`()=>globalThis.__copied`),'#1E202C');
  await evaluate(fixture,`figma.currentPage.selection=[]`);await wait(fixture,`${root}.querySelector('.empty').hidden===false`);assert.equal(await evaluate(fixture,`${root}.querySelector('.section').closest('[hidden]')!==null`),true);
  await evaluate(fixture,`${root}.querySelector('button[aria-label="Close Pecta Mode"]').click()`);await wait(fixture,"!document.getElementById('pecta-mode-root')&&!window.__PECTA_MODE_BRIDGE__");
- await launch();await wait(fixture,`!!${root}`);await launch();await wait(fixture,"!document.getElementById('pecta-mode-root')&&!window.__PECTA_MODE_BRIDGE__");
+ await launch();await wait(fixture,`!!${root}`);await wait(fixture,`${root}.querySelector('.updates-item-dot').hidden===false`);assert.equal(await evaluate(fixture,`${root}.querySelector('.settings-update-dot').hidden`),true);await launch();await wait(fixture,"!document.getElementById('pecta-mode-root')&&!window.__PECTA_MODE_BRIDGE__");
  assert.deepEqual(errors,[]);console.log(JSON.stringify({passed:true,browser:session.capabilities.browserVersion,checks:['automatic toolbar availability before opening the panel','native blue/gray icon writes','loss and recovery of Figma access','full viewport height','bundled Inter and host serif styles','temporary extension installed','real scripting MAIN and ISOLATED','launcher toggle','CSS/components/tokens','inline copy','live updates','empty selection','close and re-enable cleanup']}));
 }finally{if(ws?.readyState===1){await cmd('session.end').catch(()=>{});ws.close();}child.kill();await writeFile(dir+'/browser.log',logs);}

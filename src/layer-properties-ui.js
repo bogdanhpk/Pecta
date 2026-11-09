@@ -104,7 +104,7 @@ export function createLayerProperties({el,icon,copyButton,selectControl,cssSecti
     listPanel.replaceChildren(fragment);
   }
   function render(next,unit,rich){
-    current=next;const f=current.fields;model=layerBoxModel(f);corners=layerRadii(f);figure.dataset.unit=unit;unitSelect.value=unit;figure.hidden=f.type==='TEXT';typography.render(current,unit);
+    current=next;const f=current.fields;model=layerBoxModel(f);corners=layerRadii(f);figure.dataset.unit=unit;unitSelect.value=unit;selectControl.sync(unitSelect);figure.hidden=f.type==='TEXT';typography.render(current,unit);
     for(const [id,record] of metrics){
       const raw=record.getValue(),label=record.button.querySelector('.metric-label');
       record.button.dataset.zero=String(raw===0);

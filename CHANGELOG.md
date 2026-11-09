@@ -1,5 +1,13 @@
 # История изменений
 
+## Unreleased
+
+- Replaced the distorted Figma mark with its official monoline vector and reduced both connection-state logos for more space inside their circles.
+- Centered all inspector empty states horizontally and vertically below the header, with scrolling when the window is too short.
+- Simplified the Settings menu: removed Refresh properties, renamed Check for Updates, and placed the installed version beside About Pecta as a plain number.
+- Added a red update indicator on the Settings button and the Check for Updates item. Opening the menu clears the button indicator for that version; the menu indicator remains until the update is installed.
+- Made every inspector select compact, with width based on the selected value and consistent spacing before the chevron. Long values fit within the panel.
+
 ## 0.3.19
 
 - Translated the inspector, launcher, About, Updates, diagnostics, and accessibility labels into English. Figma names and content keep their original language.

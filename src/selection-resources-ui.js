@@ -27,7 +27,7 @@ export function createSelectionResources({el,icon,copyButton,selectControl,reque
   details.addEventListener('toggle',()=>{if(details.open)for(const card of cards.values())beginPreview(card);});
   formatSelect.onchange=()=>onColorFormatChange(formatSelect.value);
   function renderColors(){
-    const key=JSON.stringify([report?.colors,format]);if(key===colorKey)return;colorKey=key;formatSelect.value=format;
+    const key=JSON.stringify([report?.colors,format]);if(key===colorKey)return;colorKey=key;formatSelect.value=format;selectControl.sync(formatSelect);
     const fragment=document.createDocumentFragment();
     for(const item of report?.colors||[]){
       const color=textColor(item.paint,format),name=item.name||color?.value||colorText(item.paint),row=el('div','selection-color-row');row.dataset.colorName=item.name||'';
@@ -116,6 +116,6 @@ export function createSelectionResources({el,icon,copyButton,selectControl,reque
   }
   function reset(){generation++;current=null;report=null;colorKey='';assetKey='';observer.disconnect();cards.clear();requests.clear();colorList.replaceChildren();assetList.replaceChildren();}
   function close(){reset();for(const url of urls)URL.revokeObjectURL(url);urls.clear();for(const timer of timers)clearTimeout(timer);timers.clear();}
-  function setColorFormat(value){format=['hex','rgb','hsl'].includes(value)?value:'hex';formatSelect.value=format;renderColors();}
+  function setColorFormat(value){format=['hex','rgb','hsl'].includes(value)?value:'hex';formatSelect.value=format;selectControl.sync(formatSelect);renderColors();}
   return{node,render,acceptResources,acceptAsset,reset,close,setColorFormat};
 }

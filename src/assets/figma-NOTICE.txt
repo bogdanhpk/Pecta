@@ -1,0 +1,9 @@
+Figma monoline logo
+
+Source: https://www.figma.com/using-the-figma-brand/
+Official asset archive: https://static.figma.com/uploads/4fbf4d754dbbc027ba1530205f8747cd97d532e5
+Asset: Figma Brand Assets/Figma Icon (Mono-line)/Figma Icon (Mono-line white).svg
+
+The path geometry is preserved. The viewBox is trimmed to the artwork bounds,
+and the monochrome fill inherits the inspector theme. The Figma mark is used
+to identify the connected product. Figma owns its name and trademarks.

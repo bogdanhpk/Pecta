@@ -41,8 +41,14 @@ try {
  await fixture.locator('.name').filter({hasText:'Button / Subscribe'}).waitFor();
  await fixture.locator('.component-name').filter({hasText:'Actions / Button'}).waitFor();assert.equal(await fixture.locator('#pecta-mode-root').getAttribute('lang'),'en');
  await fixture.waitForFunction(()=>[...document.fonts].some(face=>face.family==='Pecta Inter'&&face.status==='loaded'));
- const updatesLink=fixture.locator('.menu a[href$="updates.html"]');await updatesLink.filter({hasText:`Update to ${futureVersion}`}).waitFor({state:'attached'});
+ const updatesLink=fixture.locator('.menu a[href$="updates.html"]');await fixture.locator('.settings-update-dot').waitFor({state:'visible'});assert.equal(await updatesLink.textContent(),'Check for Updates');
+ await fixture.locator('.header').screenshot({path:dir+'/update-notice-unread.png'});
  await fixture.locator('.header details>summary').click();
+ assert.equal(await fixture.locator('.menu button').count(),0);assert.equal(await fixture.locator('.menu .version').count(),0);assert.equal(await fixture.locator('.menu-about-link .menu-version').textContent(),manifest.version);
+ assert.equal(await fixture.locator('.settings-update-dot').isVisible(),false);assert.equal(await updatesLink.locator('.updates-item-dot').isVisible(),true);
+ await control.waitForFunction(async version=>(await chrome.storage.local.get('pectaSeenUpdateVersion')).pectaSeenUpdateVersion===version,futureVersion);
+ await fixture.locator('.header details>summary').click();assert.equal(await fixture.locator('.settings-update-dot').isVisible(),false);await fixture.locator('.header details>summary').click();
+ const panelBox=await fixture.locator('.panel').boundingBox();await fixture.screenshot({path:dir+'/update-notice-menu.png',clip:{x:panelBox.x,y:0,width:panelBox.width,height:230}});
  const [updatesPage]=await Promise.all([context.waitForEvent('page'),updatesLink.click()]);
  await updatesPage.locator('#status').filter({hasText:`Version ${futureVersion}`}).waitFor();assert.equal(await updatesPage.locator('html').getAttribute('lang'),'en');
  assert.equal(await updatesPage.locator('#download').getAttribute('href'),`https://github.com/bogdanhpk/Pecta/releases/download/v${futureVersion}/pecta-mode-${futureVersion}-chrome.zip`);
@@ -256,6 +262,7 @@ try {
  await fixture.evaluate(()=>{figma.currentPage.selection=[makeNode({id:'css-text',getCSSAsync:async()=>({content:'"<img src=x onerror=alert(1)>"',background:'url("data:image/svg+xml;<svg/>")'})})];});await fixture.locator('.css-string').filter({hasText:'<img'}).waitFor();assert.equal(await fixture.locator('#pecta-mode-root img').count(),0);assert.equal(await fixture.locator('.css code').textContent(),'content: "<img src=x onerror=alert(1)>";\nbackground: url("data:image/svg+xml;<svg/>");');
  await unitSelect.selectOption('rem');await fixture.getByRole('button',{name:'Close Pecta Mode'}).click();await fixture.locator('#pecta-mode-root').waitFor({state:'detached'});await fixture.waitForFunction(()=>!window.__PECTA_MODE_BRIDGE__);
  await launch();await fixture.locator('#pecta-mode-root').waitFor({state:'attached'});assert.equal(await fixture.locator('.panel').evaluate(e=>Math.round(e.getBoundingClientRect().width)),240);await fixture.waitForFunction(()=>document.getElementById('pecta-mode-root').shadowRoot.querySelector('.unit-select').value==='rem');
+ await fixture.locator('.updates-item-dot:not([hidden])').waitFor({state:'attached'});assert.equal(await fixture.locator('.settings-update-dot').isVisible(),false);
  await launch();await fixture.locator('#pecta-mode-root').waitFor({state:'detached'});assert.equal(await inspect('controller'),false);assert.equal(await fixture.evaluate(()=>!!window.__PECTA_MODE_BRIDGE__),false);
  await launch();await fixture.locator('.panel').waitFor();await fixture.evaluate(()=>history.pushState({},'','/files/recent'));await fixture.locator('#pecta-mode-root').waitFor({state:'detached'});assert.equal(await fixture.evaluate(()=>!!window.__PECTA_MODE_BRIDGE__),false);
  await waitIcon(tabId,false);

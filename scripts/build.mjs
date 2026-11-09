@@ -34,18 +34,19 @@ const layerData = (await readFile(path.join(root,'src/layer-properties.js'),'utf
 const layerUI = (await readFile(path.join(root,'src/layer-properties-ui.js'),'utf8')).replace(/^import .*;\n/gm,'').replace(/^export /gm,'');
 const componentUI=(await readFile(path.join(root,'src/component-info-ui.js'),'utf8')).replace(/^import .*;\n/gm,'').replace(/^export /gm,'');
 const resourcesUI=(await readFile(path.join(root,'src/selection-resources-ui.js'),'utf8')).replace(/^import .*;\n/gm,'').replace(/^export /gm,'');
+const updateNoticeUI=(await readFile(path.join(root,'src/update-notice-ui.js'),'utf8')).replace(/^export /gm,'');
 const ui = (await readFile(path.join(root,'src/inspector-ui.js'),'utf8')).replace('export async function','async function');
 const styles = await readFile(path.join(root,'src/inspector.css'),'utf8');
 const icons = await readFile(path.join(root,'src/assets/icons.json'),'utf8');
 const interFont = (await readFile(path.join(root,'src/assets/fonts/InterVariable.woff2'))).toString('base64');
-const bundle = `(() => {\n${units}\n${helpers}\n${highlighter}\n${typographyData}\n${layerData}\n${typographyUI}\n${layerUI}\n${componentUI}\n${resourcesUI}\n${ui}\nvoid mountInspector(globalThis.__PECTA_MODE_LAUNCH__,${JSON.stringify(styles)},${icons},${JSON.stringify(interFont)}).catch(error=>console.error('Pecta panel:',error));\n})();\n`;
+const bundle = `(() => {\n${units}\n${helpers}\n${highlighter}\n${typographyData}\n${layerData}\n${typographyUI}\n${layerUI}\n${componentUI}\n${resourcesUI}\n${updateNoticeUI}\n${ui}\nvoid mountInspector(globalThis.__PECTA_MODE_LAUNCH__,${JSON.stringify(styles)},${icons},${JSON.stringify(interFont)}).catch(error=>console.error('Pecta panel:',error));\n})();\n`;
 
 for (const browser of ['chrome', 'firefox']) {
   const destination = path.join(root, 'dist', browser);
   await rm(destination, { recursive: true, force: true });
   await mkdir(destination, { recursive: true });
   await cp(path.join(root, 'src'), destination, { recursive: true });
-  for (const file of ['inspector-ui.js','inspector.css','mode-bridge.js','format.js','css-highlight.js','units.js','layer-properties.js','layer-properties-ui.js','component-reader.js','component-info-ui.js','typography.js','typography-ui.js','selection-reader.js','selection-resources-ui.js']) await rm(path.join(destination,file));
+  for (const file of ['inspector-ui.js','inspector.css','mode-bridge.js','format.js','css-highlight.js','units.js','layer-properties.js','layer-properties-ui.js','component-reader.js','component-info-ui.js','typography.js','typography-ui.js','selection-reader.js','selection-resources-ui.js','update-notice-ui.js']) await rm(path.join(destination,file));
   await rm(path.join(destination,'updates.js'));
   await writeFile(path.join(destination,'background.js'),`${updateService}\n${background}`);
   await writeFile(path.join(destination,'mode-entry.js'),bridge);

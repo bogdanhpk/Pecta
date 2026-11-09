@@ -85,7 +85,7 @@ export function createComponentInformation({el,icon,copyButton,selectControl,req
     const variants=metadata?.variants||[],vkey=JSON.stringify(variants);
     if(vkey!==variantKey){
       variantKey=vkey;const old=variantSelect.value;variantSelect.replaceChildren(...variants.map(variant=>{const option=el('option','',variant.name||variant.id);option.value=variant.id;return option;}));
-      const active=variants.find(variant=>variant.id===old)||variants.find(variant=>variant.id===metadata?.id)||variants[0];if(active)variantSelect.value=active.id;
+      const active=variants.find(variant=>variant.id===old)||variants.find(variant=>variant.id===metadata?.id)||variants[0];if(active)variantSelect.value=active.id;selectControl.sync(variantSelect);
       fillRows(variantRows,variantFields());
     }
     explore.hidden=variants.length<2;

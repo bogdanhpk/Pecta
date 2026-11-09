@@ -29,7 +29,15 @@ export async function mountInspector(config, styles, icons, interFont) {
     const node = build(icons[name]); node.setAttribute('fill','currentColor');node.setAttribute('aria-hidden','true');return node;
   }
   function iconButton(name,label) { const button=el('button','icon-button');button.type='button';button.title=label;button.setAttribute('aria-label',label);button.append(icon(name));return button; }
-  function selectControl(select,className){const control=el('span',`select-control ${className}`),chevron=icon('caret-right');chevron.classList.add('select-chevron');control.append(select,chevron);return control;}
+  function selectControl(select,className){
+    const control=el('span',`select-control ${className}`),sizer=el('span','select-sizer'),chevron=icon('caret-right');
+    sizer.setAttribute('aria-hidden','true');chevron.classList.add('select-chevron');control.append(sizer,select,chevron);
+    select.addEventListener('change',()=>selectControl.sync(select));selectControl.sync(select);return control;
+  }
+  selectControl.sync=select=>{
+    const control=select.parentElement,sizer=control?.querySelector('.select-sizer');if(!sizer)return;
+    const label=select.selectedOptions[0]?.textContent||'—';if(sizer.textContent!==label)sizer.textContent=label;control.title=label;
+  };
   const send = type => window.postMessage({source:'pecta-mode',channel:config.channel,direction:'to-page',type},location.origin);
   function clearCopies() {
     copyEpoch++;
@@ -76,11 +84,12 @@ export async function mountInspector(config, styles, icons, interFont) {
   const resize=el('div','resize');resize.tabIndex=0;resize.setAttribute('role','separator');resize.setAttribute('aria-orientation','vertical');resize.setAttribute('aria-label','Pecta panel width');resize.setAttribute('aria-valuemin','240');resize.setAttribute('aria-valuemax','450');
   const header=el('header','header');const mark=el('span','brand-mark');mark.append(icon('stack-simple'));
   const menu=el('details');const menuSummary=el('summary','icon-button');menuSummary.title='Settings';menuSummary.setAttribute('aria-label','Settings');menuSummary.append(icon('dots-three'));
-  const menuItems=el('div','menu');const retry=el('button','','Refresh properties');retry.type='button';retry.onclick=()=>{send('refresh');menu.open=false;};
-  const about=el('a','','About Pecta');about.href=api.runtime.getURL('about.html');about.target='_blank';about.rel='noopener noreferrer';
-  const updatesLink=el('a','','Check for updates');updatesLink.href=api.runtime.getURL('updates.html');updatesLink.target='_blank';updatesLink.rel='noopener noreferrer';
-  void api.runtime.sendMessage({type:'pecta:updates-check'}).then(result=>{if(!closed&&result?.status==='available')updatesLink.textContent=`Update to ${result.latestVersion}`;}).catch(()=>{});
-  menuItems.append(retry,updatesLink,about,el('span','version',`Pecta ${config.extensionVersion}`));menu.append(menuSummary,menuItems);
+  const menuItems=el('div','menu');
+  const about=el('a','menu-about-link');about.href=api.runtime.getURL('about.html');about.target='_blank';about.rel='noopener noreferrer';about.setAttribute('aria-label','About Pecta');
+  const aboutVersion=el('span','menu-version',config.extensionVersion);aboutVersion.id='pecta-menu-version';about.append(el('span','','About Pecta'),aboutVersion);about.setAttribute('aria-describedby',aboutVersion.id);
+  const updatesLink=el('a','','Check for Updates');updatesLink.href=api.runtime.getURL('updates.html');updatesLink.target='_blank';updatesLink.rel='noopener noreferrer';
+  menuItems.append(updatesLink,about);menu.append(menuSummary,menuItems);
+  const updateNotice=createUpdateNotice({api,el,menu,button:menuSummary,link:updatesLink});
   const closeButton=iconButton('x','Close Pecta Mode');header.append(mark,el('strong','brand','Pecta Mode'),menu,closeButton);
   const scroll=el('div','scroll');const empty=el('div','empty');const emptyIcon=el('div','empty-icon');
   const selectionIcon=el('span','selection-icon');selectionIcon.append(icon('stack-simple'));
@@ -98,9 +107,9 @@ export async function mountInspector(config, styles, icons, interFont) {
     svgPart('circle',{class:'connection-product',cx:'136',cy:'38',r:'22','data-product':'pecta'})
   );
   const figmaMark=icon('figma-logo');figmaMark.classList.add('connection-logo-figma');figmaMark.dataset.brand='figma';
-  for(const [key,value] of Object.entries({x:'7.5',y:'21.5',width:'32',height:'32'}))figmaMark.setAttribute(key,value);
+  for(const [key,value] of Object.entries({x:'16',y:'26',width:'16',height:'24'}))figmaMark.setAttribute(key,value);
   const pectaMark=icon('stack-simple');pectaMark.classList.add('connection-logo-pecta');pectaMark.dataset.brand='pecta';
-  for(const [key,value] of Object.entries({x:'123',y:'25.4',width:'26',height:'26'}))pectaMark.setAttribute(key,value);
+  for(const [key,value] of Object.entries({x:'126',y:'28',width:'20',height:'20'}))pectaMark.setAttribute(key,value);
   connectionDrawing.append(figmaMark,pectaMark);connectionIcon.append(connectionDrawing);emptyIcon.append(selectionIcon,connectionIcon);
   const emptyTitle=el('p','empty-title','Select a layer');const emptyHint=el('p','hint','Layer properties, CSS, and tokens will appear here.');const reconnect=el('button','retry','Retry');reconnect.hidden=true;reconnect.onclick=()=>send('refresh');empty.append(emptyIcon,emptyTitle,emptyHint,reconnect);
   const content=el('div');content.hidden=true;
@@ -205,7 +214,7 @@ export async function mountInspector(config, styles, icons, interFont) {
   const observer=new MutationObserver(theme);observer.observe(document.documentElement,{attributes:true,attributeFilter:['class','style','data-theme']});if(document.body)observer.observe(document.body,{attributes:true,attributeFilter:['class','style','data-theme']});
   // Keep native Figma commands outside the panel. Text and code stay selectable inside it.
   for(const event of ['keydown','keyup','keypress','copy','cut','paste','pointerdown','mousedown','click','dblclick','wheel'])panel.addEventListener(event,e=>e.stopPropagation());
-  function close(notify=true){if(closed)return;if(notify)send('stop');closed=true;component.reset();resources.close();clearCopies();for(const timer of timers)clearTimeout(timer);observer.disconnect();media.removeEventListener('change',theme);window.removeEventListener('message',onMessage);window.removeEventListener('resize',onWindowResize);host.remove();if(globalThis.__PECTA_MODE_UI__===controller)delete globalThis.__PECTA_MODE_UI__;}
+  function close(notify=true){if(closed)return;if(notify)send('stop');closed=true;updateNotice.close();component.reset();resources.close();clearCopies();for(const timer of timers)clearTimeout(timer);observer.disconnect();media.removeEventListener('change',theme);window.removeEventListener('message',onMessage);window.removeEventListener('resize',onWindowResize);host.remove();if(globalThis.__PECTA_MODE_UI__===controller)delete globalThis.__PECTA_MODE_UI__;}
   const controller={isOpen:true,close};globalThis.__PECTA_MODE_UI__=controller;closeButton.onclick=()=>close();
   window.addEventListener('message',onMessage);window.addEventListener('resize',onWindowResize);media.addEventListener('change',theme);theme();document.body.append(host);setWidth(width);
   try{
@@ -215,7 +224,7 @@ export async function mountInspector(config, styles, icons, interFont) {
       if(!propertyViewWasChanged&&['list','code'].includes(saved.propertyView))properties.setView(saved.propertyView);
       if(!colorFormatWasChanged&&['hex','rgb','hsl'].includes(saved.colorFormat)){colorFormat=saved.colorFormat;properties.setColorFormat(colorFormat);resources.setColorFormat(colorFormat);}
       if(!unitWasChanged&&['px','rem'].includes(saved.lengthUnit)){
-        lengthUnit=saved.lengthUnit;properties.unitSelect.value=lengthUnit;
+        lengthUnit=saved.lengthUnit;properties.unitSelect.value=lengthUnit;selectControl.sync(properties.unitSelect);
         if(currentNode)render(currentNode,richReceived);
       }
     }
