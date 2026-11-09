@@ -6,6 +6,11 @@ globalThis.createPectaUpdateService=function(api,{fetchImpl=(...args)=>globalThi
   let running=null,recent=null,lastAttempt=0,lastResult=null;
   function versionParts(value){return typeof value==='string'&&/^\d+\.\d+\.\d+(?:\.\d+)?$/.test(value)&&value.split('.').every(part=>part.length<=5&&Number(part)<=65535)?value.split('.').map(Number):null;}
   function newer(a,b){const first=versionParts(a),second=versionParts(b);if(!first||!second)return false;for(let i=0;i<4;i++){const difference=(first[i]||0)-(second[i]||0);if(difference)return difference>0;}return false;}
+  function normalizeNotes(value){
+    const notes=typeof value==='string'?value.replace(/\r\n?/g,'\n').trim():'';
+    let clipped=notes.slice(0,16000);if(/[\uD800-\uDBFF]$/.test(clipped))clipped=clipped.slice(0,-1);
+    return{notes:clipped,notesTruncated:notes.length>16000};
+  }
   function normalizeRelease(data){
     if(!data||data.draft||data.prerelease||typeof data.tag_name!=='string'||!data.tag_name.startsWith('v'))throw Error('invalid-release');
     const version=data.tag_name.slice(1);if(!versionParts(version))throw Error('invalid-release');
@@ -14,16 +19,17 @@ globalThis.createPectaUpdateService=function(api,{fetchImpl=(...args)=>globalThi
       const name=`pecta-mode-${version}-${target}.zip`,url=`${releaseRoot}/download/${data.tag_name}/${name}`;
       if(Array.isArray(data.assets)&&data.assets.some(asset=>asset.name===name&&asset.state==='uploaded'&&asset.size>0&&asset.browser_download_url===url))assets[target]=url;
     }
-    return{version,assets};
+    return{version,assets,...normalizeNotes(data.body),notesKnown:true};
   }
   function cached(value){
     if(!value||!versionParts(value.version)||!Number.isFinite(value.checkedAt)||value.checkedAt>now()+60000)return null;
     const assets={};for(const target of ['chrome','firefox']){const expected=`${releaseRoot}/download/v${value.version}/pecta-mode-${value.version}-${target}.zip`;if(value.assets?.[target]===expected)assets[target]=expected;}
-    return{version:value.version,assets,checkedAt:value.checkedAt,etag:typeof value.etag==='string'&&value.etag.length<200?value.etag:null};
+    const notesKnown=typeof value.notes==='string',notes=normalizeNotes(value.notes);
+    return{version:value.version,assets,...notes,notesTruncated:notes.notesTruncated||value.notesTruncated===true,notesKnown,checkedAt:value.checkedAt,etag:notesKnown&&typeof value.etag==='string'&&value.etag.length<200?value.etag:null};
   }
   function view(release){
     const available=newer(release.version,currentVersion);
-    return{status:available?(release.assets[browser]?'available':'missing-build'):'current',currentVersion,latestVersion:release.version,browser,downloadUrl:release.assets[browser]||null,releaseUrl:`${releaseRoot}/tag/v${release.version}`,checkedAt:release.checkedAt};
+    return{status:available?(release.assets[browser]?'available':'missing-build'):'current',currentVersion,latestVersion:release.version,browser,downloadUrl:release.assets[browser]||null,releaseUrl:`${releaseRoot}/tag/v${release.version}`,checkedAt:release.checkedAt,releaseNotes:release.notes||'',releaseNotesTruncated:release.notesTruncated===true};
   }
   async function readJson(response){
     if(Number(response.headers.get('content-length'))>262144)throw Error('invalid-release');
@@ -34,7 +40,7 @@ globalThis.createPectaUpdateService=function(api,{fetchImpl=(...args)=>globalThi
   }
   async function perform(force){
     if(!recent){try{recent=cached((await api.storage.local.get(cacheKey))[cacheKey]);}catch{}}
-    if(!force&&recent&&now()-recent.checkedAt<21600000)return view(recent);
+    if(!force&&recent?.notesKnown&&now()-recent.checkedAt<21600000)return view(recent);
     if(lastResult&&now()-lastAttempt<60000)return lastResult;
     lastAttempt=now();const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),8000);
     try{

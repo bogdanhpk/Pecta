@@ -15,10 +15,11 @@ try {
    }
  });
  const futureVersion=manifest.version.split('.').map((value,index)=>Number(value)+(index===2?1:0)).join('.');
- await worker.evaluate(version=>{
+ const fixtureNotes='## Добавлено\n- Блок **«Что нового»** в обновлениях.\n- Просмотр описания перед скачиванием.\n\n[Подробности](https://github.com/bogdanhpk/Pecta/releases)';
+ await worker.evaluate(({version,notes})=>{
    const nativeFetch=globalThis.fetch.bind(globalThis);
-   globalThis.fetch=async(url,options)=>url!=='https://api.github.com/repos/bogdanhpk/Pecta/releases/latest'?nativeFetch(url,options):new Response(JSON.stringify({tag_name:`v${version}`,draft:false,prerelease:false,assets:['chrome','firefox'].map(browser=>({name:`pecta-mode-${version}-${browser}.zip`,state:'uploaded',size:100,browser_download_url:`https://github.com/bogdanhpk/Pecta/releases/download/v${version}/pecta-mode-${version}-${browser}.zip`}))}),{headers:{etag:'"browser-test"'}});
- },futureVersion);
+   globalThis.fetch=async(url,options)=>url!=='https://api.github.com/repos/bogdanhpk/Pecta/releases/latest'?nativeFetch(url,options):new Response(JSON.stringify({tag_name:`v${version}`,draft:false,prerelease:false,body:notes,assets:['chrome','firefox'].map(browser=>({name:`pecta-mode-${version}-${browser}.zip`,state:'uploaded',size:100,browser_download_url:`https://github.com/bogdanhpk/Pecta/releases/download/v${version}/pecta-mode-${version}-${browser}.zip`}))}),{headers:{etag:'"browser-test"'}});
+ },{version:futureVersion,notes:fixtureNotes});
  await context.route('https://www.figma.com/**',async r=>r.fulfill({contentType:'text/html; charset=utf-8',headers:{'Content-Security-Policy':"require-trusted-types-for 'script'; font-src 'none'; connect-src 'none'; img-src 'none'"},body:`${await readFile(new URL('./figma.html',import.meta.url),'utf8')}`}));
  const fixture=await context.newPage();await fixture.goto('https://www.figma.com/design/fixture');
  const control=await context.newPage();await control.goto(`chrome-extension://${id}/popup.html`);
@@ -47,7 +48,24 @@ try {
  assert.equal(await updatesPage.locator('#download').getAttribute('href'),`https://github.com/bogdanhpk/Pecta/releases/download/v${futureVersion}/pecta-mode-${futureVersion}-chrome.zip`);
  assert.match(await updatesPage.locator('#instructions').textContent(),/chrome:\/\/extensions/);
  assert.match(await updatesPage.locator('#installed').textContent(),new RegExp(manifest.version.replaceAll('.','\\.')));
- await updatesPage.screenshot({path:dir+'/updates.png'});await updatesPage.close();await fixture.bringToFront();
+ await updatesPage.getByRole('heading',{name:`Что нового в ${futureVersion}`,exact:true}).waitFor();
+ assert.equal(await updatesPage.locator('#release-notes-body li').count(),2);
+ assert.match(await updatesPage.locator('#release-notes-body strong').textContent(),/Что нового/);
+ assert.equal(await updatesPage.locator('#release-notes-body a').getAttribute('href'),'https://github.com/bogdanhpk/Pecta/releases');
+ await updatesPage.screenshot({path:dir+'/updates.png'});
+ await updatesPage.emulateMedia({colorScheme:'dark'});await updatesPage.screenshot({path:dir+'/updates-notes-dark.png'});
+ const hostile='## Примечания\n- <img src=x onerror=alert(1)>\n<script>alert(1)</script>\n[Опасная ссылка](javascript:alert(1))\n[Безопасная ссылка](https://github.com/bogdanhpk/Pecta)';
+ await updatesPage.evaluate(({version,notes})=>{chrome.runtime.sendMessage=async()=>({status:'available',currentVersion:'0.0.1',latestVersion:version,releaseNotes:notes,releaseUrl:'https://github.com/bogdanhpk/Pecta/releases',downloadUrl:'https://github.com/bogdanhpk/Pecta/releases'});},{version:futureVersion,notes:hostile});
+ await updatesPage.locator('#check').click();await updatesPage.locator('#release-notes-body').filter({hasText:'Опасная ссылка'}).waitFor();
+ assert.equal(await updatesPage.locator('#release-notes-body img,#release-notes-body script,#release-notes-body a[href^="javascript:"]').count(),0);
+ assert.match(await updatesPage.locator('#release-notes-body').textContent(),/<img src=x/);
+ assert.equal(await updatesPage.locator('#release-notes-body a').count(),1);
+ await updatesPage.evaluate(version=>{chrome.runtime.sendMessage=async()=>({status:'available',currentVersion:'0.0.1',latestVersion:version,releaseNotes:'',releaseUrl:'https://github.com/bogdanhpk/Pecta/releases'});},futureVersion);
+ await updatesPage.locator('#check').click();await updatesPage.getByText('Описание изменений для этой версии пока не добавлено.',{exact:true}).waitFor();
+ await updatesPage.evaluate(version=>{chrome.runtime.sendMessage=async()=>({status:'current',currentVersion:version,latestVersion:version,releaseNotes:'Не должно отображаться'});},manifest.version);
+ await updatesPage.locator('#check').click();await updatesPage.locator('#status').filter({hasText:'актуальная версия'}).waitFor();assert.equal(await updatesPage.locator('#release-notes').isVisible(),false);
+ assert.equal(await updatesPage.locator('#release-notes-body').textContent(),'');
+ await updatesPage.close();await fixture.bringToFront();
  assert.equal(await fixture.locator('.menu a').filter({hasText:'Диагностика доступа'}).count(),0);
  const [aboutPage]=await Promise.all([context.waitForEvent('page'),fixture.getByRole('link',{name:'О Pecta',exact:true}).click()]);
  await aboutPage.getByRole('heading',{name:'О Pecta',exact:true}).waitFor();

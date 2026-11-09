@@ -43,7 +43,8 @@ try {
  await wait(control,`(async()=>(await browser.action.getTitle({tabId:${tabId}}))==='Pecta Mode — доступен в этом макете')()`);
  assert.match(await evaluate(control,`(async()=>(await browser.runtime.getBackgroundPage()).__iconWrites.filter(item=>item.tabId===${tabId}).at(-1).path[16])()`),/ready-16/);
  const futureVersion=manifest.version.split('.').map((value,index)=>Number(value)+(index===2?1:0)).join('.');
- await evaluate(control,`(async()=>{const bg=await browser.runtime.getBackgroundPage();const version=${JSON.stringify(futureVersion)};const nativeFetch=bg.fetch.bind(bg);bg.fetch=async(url,options)=>url!=='https://api.github.com/repos/bogdanhpk/Pecta/releases/latest'?nativeFetch(url,options):new bg.Response(JSON.stringify({tag_name:'v'+version,draft:false,prerelease:false,assets:['chrome','firefox'].map(target=>({name:'pecta-mode-'+version+'-'+target+'.zip',state:'uploaded',size:100,browser_download_url:'https://github.com/bogdanhpk/Pecta/releases/download/v'+version+'/pecta-mode-'+version+'-'+target+'.zip'}))}));})()`);
+ const fixtureNotes='## Добавлено\n- Блок **«Что нового»** в обновлениях.\n- Просмотр описания перед скачиванием.';
+ await evaluate(control,`(async()=>{const bg=await browser.runtime.getBackgroundPage();const version=${JSON.stringify(futureVersion)};const nativeFetch=bg.fetch.bind(bg);bg.fetch=async(url,options)=>url!=='https://api.github.com/repos/bogdanhpk/Pecta/releases/latest'?nativeFetch(url,options):new bg.Response(JSON.stringify({tag_name:'v'+version,draft:false,prerelease:false,body:${JSON.stringify(fixtureNotes)},assets:['chrome','firefox'].map(target=>({name:'pecta-mode-'+version+'-'+target+'.zip',state:'uploaded',size:100,browser_download_url:'https://github.com/bogdanhpk/Pecta/releases/download/v'+version+'/pecta-mode-'+version+'-'+target+'.zip'}))}));})()`);
  const inject=async(world,source)=>JSON.parse(await evaluate(control,`(async()=>JSON.stringify((await browser.scripting.executeScript({target:{tabId:${tabId}},world:${JSON.stringify(world)},func:${source}}))[0].result))()`));
  const launch=async()=>{
    const page=(await cmd('browsingContext.create',{type:'tab'})).context;
@@ -62,6 +63,10 @@ try {
  await wait(updatesPage,`document.querySelector('#status').textContent.includes(${JSON.stringify('Доступна версия ')}+${JSON.stringify(futureVersion)})`);
  assert.equal(await evaluate(updatesPage,"document.querySelector('#download').getAttribute('href')"),`https://github.com/bogdanhpk/Pecta/releases/download/v${futureVersion}/pecta-mode-${futureVersion}-firefox.zip`);
  assert.match(await evaluate(updatesPage,"document.querySelector('#instructions').textContent"),/about:debugging/);
+ assert.equal(await evaluate(updatesPage,"document.querySelector('#release-notes').hidden"),false);
+ assert.equal(await evaluate(updatesPage,"document.querySelectorAll('#release-notes-body li').length"),2);
+ assert.equal(await evaluate(updatesPage,"document.querySelector('#release-notes-title').textContent"),`Что нового в ${futureVersion}`);
+
  await cmd('browsingContext.close',{context:updatesPage});await cmd('browsingContext.activate',{context:fixture});
  assert.equal(await evaluate(fixture,`${root}.querySelector('.menu').textContent.includes('Диагностика доступа')`),false);
  assert.equal(await evaluate(fixture,`${root}.querySelector('.menu a[href$="about.html"]').textContent`),'О Pecta');

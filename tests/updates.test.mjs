@@ -48,3 +48,22 @@ test('missing releases, rate limits, invalid JSON and offline errors remain trut
  const cases=[{fetch:()=>new Response('{}',{status:404}),status:'unreleased'},{fetch:()=>new Response('{}',{status:429}),status:'error',reason:'rate-limit'},{fetch:()=>new Response('bad json'),status:'error'},{fetch:()=>{throw Error('Offline');},status:'error'}];
  for(const item of cases){const {service}=environment({fetchImpl:item.fetch});const result=await service.check();assert.equal(result.status,item.status);if(item.reason)assert.equal(result.reason,item.reason);assert.equal(result.downloadUrl,undefined);}
 });
+
+test('release notes stay associated with their version through cache restart and 304',async()=>{
+ const body='## Добавлено\n- Новый просмотр токенов.\n- Копирование CSS.';
+ const first=environment({fetchImpl:async()=>new Response(JSON.stringify({...release(),body}),{headers:{etag:'"notes"'}})});
+ const result=await first.service.check();assert.equal(result.releaseNotes,body);assert.equal(result.releaseNotesTruncated,false);
+ const restarted=environment({stored:first.data,fetchImpl:async()=>new Response(null,{status:304})});
+ assert.equal((await restarted.service.check()).releaseNotes,body);assert.equal(restarted.requests.length,0);
+ restarted.advance(21600001);assert.equal((await restarted.service.check()).releaseNotes,body);assert.equal(restarted.requests[0][1].headers['If-None-Match'],'"notes"');
+});
+test('legacy caches without notes force a full response instead of retaining an empty 304',async()=>{
+ const initial=environment();await initial.service.check();delete initial.data.pectaRelease.notes;delete initial.data.pectaRelease.notesTruncated;delete initial.data.pectaRelease.notesKnown;
+ const migrated=environment({stored:initial.data,fetchImpl:async()=>new Response(JSON.stringify({...release(),body:'- Добавлена страница «О Pecta».'}))});
+ const result=await migrated.service.check();assert.equal(migrated.requests.length,1);assert.equal(migrated.requests[0][1].headers['If-None-Match'],undefined);assert.match(result.releaseNotes,/О Pecta/);
+});
+test('empty and long release descriptions remain truthful, bounded and Unicode-safe',async()=>{
+ const missing=environment({fetchImpl:async()=>new Response(JSON.stringify(release()))});assert.equal((await missing.service.check()).releaseNotes,'');
+ const body='x'.repeat(15999)+'😀 ещё текст';
+ const long=environment({fetchImpl:async()=>new Response(JSON.stringify({...release(),body}))});const result=await long.service.check();assert.equal(result.releaseNotes.length,15999);assert.equal(result.releaseNotesTruncated,true);assert.ok(!/[\uD800-\uDBFF]$/.test(result.releaseNotes));
+});

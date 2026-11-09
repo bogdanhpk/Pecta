@@ -1,8 +1,10 @@
+import {renderReleaseNotes} from './release-notes.js';
 const api=globalThis.browser||globalThis.chrome;
 const manifest=api.runtime.getManifest(),firefox=!!manifest.browser_specific_settings?.gecko;
 const status=document.querySelector('#status'),download=document.querySelector('#download'),check=document.querySelector('#check'),release=document.querySelector('#release');
 document.querySelector('#installed').textContent=`Установлена ${manifest.version}`;
 release.href='https://github.com/bogdanhpk/Pecta/releases';
+const notesSection=document.querySelector('#release-notes'),notesBody=document.querySelector('#release-notes-body'),notesTitle=document.querySelector('#release-notes-title'),notesTruncated=document.querySelector('#release-notes-truncated'),notesLink=document.querySelector('#release-notes-link');
 const instructions=firefox?[
   'Скачайте и распакуйте сборку для Firefox.',
   'Замените содержимое папки установленного расширения файлами из папки firefox в архиве.',
@@ -17,14 +19,21 @@ const instructions=firefox?[
 for(const text of instructions){const item=document.createElement('li');item.textContent=text;document.querySelector('#instructions').append(item);}
 document.querySelector('#installation-note').textContent=firefox?'Эта сборка устанавливается как временное дополнение и действует до перезапуска Firefox.':'Распакованное расширение обновляется через замену файлов в его папке.';
 function render(result){
-  download.hidden=true;
+  download.hidden=true;notesSection.hidden=true;notesBody.replaceChildren();notesTruncated.hidden=true;
   const messages={available:`Доступна версия ${result.latestVersion}.`,current:`Установлена актуальная версия ${result.currentVersion}.`,unreleased:'В репозитории пока нет опубликованных сборок.', 'missing-build':'Новый релиз опубликован, сборка для вашего браузера пока недоступна.'};
   status.textContent=messages[result.status]||(result.reason==='rate-limit'?'GitHub временно ограничил запросы. Повторите проверку позже.':'Не удалось проверить обновления. Проверьте подключение и повторите.');
   if(result.status==='available'&&result.downloadUrl){download.href=result.downloadUrl;download.textContent=`Скачать ${result.latestVersion} для ${firefox?'Firefox':'Chrome'}`;download.hidden=false;}
   if(result.releaseUrl)release.href=result.releaseUrl;
+  if(['available','missing-build'].includes(result.status)){
+    notesTitle.textContent=`Что нового в ${result.latestVersion}`;
+    const truncated=renderReleaseNotes(notesBody,result.releaseNotes||'');
+    if(!notesBody.childElementCount){const empty=document.createElement('p');empty.className='hint';empty.textContent='Описание изменений для этой версии пока не добавлено.';notesBody.append(empty);}
+    notesTruncated.hidden=!(result.releaseNotesTruncated||truncated);
+    notesLink.href=result.releaseUrl;notesSection.hidden=false;
+  }
 }
 async function refresh(force){
-  check.disabled=true;status.textContent='Проверяем последнюю сборку…';
+  check.disabled=true;download.hidden=true;notesSection.hidden=true;status.textContent='Проверяем последнюю сборку…';
   try{render(await api.runtime.sendMessage({type:'pecta:updates-check',force}));}
   catch{status.textContent='Не удалось проверить обновления. Перезагрузите страницу и повторите.';}
   finally{check.disabled=false;}
