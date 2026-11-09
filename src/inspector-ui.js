@@ -16,7 +16,7 @@ export async function mountInspector(config, styles, icons, interFont) {
   const sheet = new CSSStyleSheet(); sheet.replaceSync(styles); shadow.adoptedStyleSheets = [sheet];
   const timers = new Set(); const copyStates = new Map();
   let closed = false, currentSeq = -1, currentNode = null, copyEpoch = 0, width = 320, richReceived = false;
-  let lengthUnit='px',unitWasChanged=false,propertyViewWasChanged=false;
+  let lengthUnit='px',colorFormat='hex',unitWasChanged=false,propertyViewWasChanged=false,colorFormatWasChanged=false;
   const lengthText=value=>numberText(lengthValue(value,lengthUnit),lengthUnit==='rem'?6:2);
   const el = (tag, className, text) => { const node=document.createElement(tag);if(className)node.className=className;if(text!==undefined)node.textContent=text;return node; };
   function icon(name) {
@@ -112,12 +112,15 @@ export async function mountInspector(config, styles, icons, interFont) {
   const css=section('CSS');const cssHeading=el('div','section-heading');cssHeading.append(css.heading);const cssCopy=copyButton(()=>cssText(currentNode?.css,lengthUnit));cssCopy.dataset.action='copy-css';cssHeading.append(cssCopy);const cssPre=el('pre','css');cssPre.tabIndex=0;const cssCode=el('code');cssPre.append(cssCode);const cssHint=el('p','hint');const cssRetry=el('button','retry','Повторить');cssRetry.onclick=()=>send('refresh');css.node.append(cssHeading,cssPre,cssHint,cssRetry);
   const properties=createLayerProperties({el,copyButton,cssSection:css.node,getUnit:()=>lengthUnit,
     onUnitChange:value=>{lengthUnit=value;unitWasChanged=true;clearCopies();if(currentNode)render(currentNode,richReceived);void api.storage.local.set({lengthUnit}).catch(()=>{});},
-    onViewChange:value=>{propertyViewWasChanged=true;void api.storage.local.set({propertyView:value}).catch(()=>{});}
+    onViewChange:value=>{propertyViewWasChanged=true;void api.storage.local.set({propertyView:value}).catch(()=>{});},
+    onColorFormatChange:value=>changeColorFormat(value)
   });
   const component=createComponentInformation({el,icon,copyButton,requestPreview:request=>window.postMessage({source:'pecta-mode',channel:config.channel,direction:'to-page',type:'component-preview',...request},location.origin)});
+  const resources=createSelectionResources({el,icon,copyButton,getUnit:()=>lengthUnit,onColorFormatChange:changeColorFormat,requestAsset:request=>window.postMessage({source:'pecta-mode',channel:config.channel,direction:'to-page',type:'selection-asset',...request},location.origin)});
+  function changeColorFormat(value){colorFormat=value;colorFormatWasChanged=true;clearCopies();properties.setColorFormat(value);resources.setColorFormat(value);void api.storage.local.set({colorFormat:value}).catch(()=>{});}
   const textSection=section('Текст');const textHeading=el('div','section-heading');textHeading.append(textSection.heading);const textCopy=copyButton(()=>currentNode?.fields.characters);textHeading.append(textCopy);const textContent=el('p','text-content');const textHint=el('p','hint');textSection.node.append(textHeading,textContent,textHint);
   const tokens=section('Токены');const tokenList=el('div');const tokenHint=el('p','hint');tokens.node.append(tokenList,tokenHint);
-  content.append(identity.node,geometry.node,component.node,properties.node,textSection.node,tokens.node);scroll.append(empty,content);panel.append(resize,header,scroll);shadow.append(panel);
+  content.append(identity.node,geometry.node,component.node,properties.node,resources.node,textSection.node,tokens.node);scroll.append(empty,content);panel.append(resize,header,scroll);shadow.append(panel);
   const setText=(node,value)=>{if(node.textContent!==String(value))node.textContent=String(value);};
   function rows(container,items) {
     const signature=JSON.stringify(items);if(container.dataset.signature===signature)return;
@@ -167,6 +170,7 @@ export async function mountInspector(config, styles, icons, interFont) {
     const cssMessage=!rich?'Загружаем CSS…':cssStatus==='ok'&&!cssValue?'Для этого слоя CSS не получен.':cssStatus==='timeout'?'Figma не вернула CSS вовремя.':cssStatus==='truncated'?'CSS превышает лимит просмотра. Копирование недоступно.':cssStatus==='error'?'Не удалось получить CSS.':cssStatus==='unavailable'?'CSS недоступен для этого слоя.':'';
     setText(cssHint,cssMessage);cssHint.hidden=!cssMessage;cssHint.classList.toggle('loading',!rich);cssRetry.hidden=!rich||!['timeout','error'].includes(cssStatus);
     component.render(node,rich,currentSeq);
+    resources.render(node,currentSeq);
     textSection.node.hidden=typeof f.characters!=='string';setText(textContent,f.characters||'');textCopy.disabled=!f.characters||f.textTruncated;setText(textHint,f.textTruncated?'Показаны первые 32 768 символов. Копирование недоступно.':'');textHint.hidden=!f.textTruncated;
     const records=node.variables||[];const tokenSignature=JSON.stringify([records.map(({id,status,value})=>({id,status,value})),f.boundVariables,f.fills,f.strokes]);
     if(tokenList.dataset.signature!==tokenSignature){tokenList.dataset.signature=tokenSignature;tokenList.replaceChildren(...records.map(record=>{
@@ -183,13 +187,15 @@ export async function mountInspector(config, styles, icons, interFont) {
     if(data.type==='stopped'){close(false);return;}
     if(data.type==='error'){if(!currentNode){empty.hidden=false;content.hidden=true;status('error');}return;}
     if(data.type==='component-preview'){if(data.seq===currentSeq)void component.acceptPreview(data.report);return;}
+    if(data.type==='selection-resources'){if(data.seq===currentSeq)resources.acceptResources(data.report);return;}
+    if(data.type==='selection-asset'){if(data.seq===currentSeq)void resources.acceptAsset(data.report);return;}
     if(!['fast','rich'].includes(data.type)||!Number.isInteger(data.seq)||data.seq<currentSeq||!data.report||typeof data.report!=='object')return;
     const report=data.report;
     if(data.seq!==currentSeq){clearCopies();richReceived=false;}
     if(data.type==='fast'&&data.seq===currentSeq&&richReceived)return;
     currentSeq=data.seq;if(data.type==='rich')richReceived=true;
     const node=report.nodes?.[0];
-    if(report.verdict!=='selection-readable'||!node?.fields){currentNode=null;component.reset();content.hidden=true;empty.hidden=false;status(report.verdict,report.apiAccess?.selectionCount);return;}
+    if(report.verdict!=='selection-readable'||!node?.fields){currentNode=null;component.reset();resources.reset();content.hidden=true;empty.hidden=false;status(report.verdict,report.apiAccess?.selectionCount);return;}
     currentNode=node;empty.hidden=true;content.hidden=false;render(node,richReceived);
   }
   const maxWidth=()=>Math.max(180,Math.min(450,window.innerWidth));
@@ -207,14 +213,15 @@ export async function mountInspector(config, styles, icons, interFont) {
   const observer=new MutationObserver(theme);observer.observe(document.documentElement,{attributes:true,attributeFilter:['class','style','data-theme']});if(document.body)observer.observe(document.body,{attributes:true,attributeFilter:['class','style','data-theme']});
   // Keep native Figma commands outside the panel. Text and code stay selectable inside it.
   for(const event of ['keydown','keyup','keypress','copy','cut','paste','pointerdown','mousedown','click','dblclick','wheel'])panel.addEventListener(event,e=>e.stopPropagation());
-  function close(notify=true){if(closed)return;if(notify)send('stop');closed=true;component.reset();clearCopies();for(const timer of timers)clearTimeout(timer);observer.disconnect();media.removeEventListener('change',theme);window.removeEventListener('message',onMessage);window.removeEventListener('resize',onWindowResize);host.remove();if(globalThis.__PECTA_MODE_UI__===controller)delete globalThis.__PECTA_MODE_UI__;}
+  function close(notify=true){if(closed)return;if(notify)send('stop');closed=true;component.reset();resources.close();clearCopies();for(const timer of timers)clearTimeout(timer);observer.disconnect();media.removeEventListener('change',theme);window.removeEventListener('message',onMessage);window.removeEventListener('resize',onWindowResize);host.remove();if(globalThis.__PECTA_MODE_UI__===controller)delete globalThis.__PECTA_MODE_UI__;}
   const controller={isOpen:true,close};globalThis.__PECTA_MODE_UI__=controller;closeButton.onclick=()=>close();
   window.addEventListener('message',onMessage);window.addEventListener('resize',onWindowResize);media.addEventListener('change',theme);theme();document.body.append(host);setWidth(width);
   try{
-    const saved=await api.storage.local.get(['panelWidth','lengthUnit','propertyView']);
+    const saved=await api.storage.local.get(['panelWidth','lengthUnit','propertyView','colorFormat']);
     if(!closed){
       if(Number.isFinite(saved.panelWidth))setWidth(saved.panelWidth);
       if(!propertyViewWasChanged&&['list','code'].includes(saved.propertyView))properties.setView(saved.propertyView);
+      if(!colorFormatWasChanged&&['hex','rgb','hsl'].includes(saved.colorFormat)){colorFormat=saved.colorFormat;properties.setColorFormat(colorFormat);resources.setColorFormat(colorFormat);}
       if(!unitWasChanged&&['px','rem'].includes(saved.lengthUnit)){
         lengthUnit=saved.lengthUnit;properties.unitSelect.value=lengthUnit;
         if(currentNode)render(currentNode,richReceived);

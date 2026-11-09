@@ -134,6 +134,7 @@ export async function probeFigmaPage(options = {}) {
       const value = safeRead(node, property, errors);
       if (value !== undefined) fields[property] = plain(value);
     }
+    if(fields.type==='TEXT')for(const property of ['openTypeFeatures','explicitVariableModes','resolvedVariableModes']){const value=safeRead(node,property,errors);if(value!==undefined)fields[property]=plain(value);}
     // The live panel does not need children; avoid materializing a large frame's child list.
     if (!options.stateless) {
       const children = safeRead(node, 'children', errors);
@@ -161,17 +162,94 @@ export async function probeFigmaPage(options = {}) {
     }
     return {fields,errors};
   }
+  async function typographySnapshot(api,fields,baseVariables,readVariable){
+    const partial={textStyle:{status:'pending'},paintStyle:{status:'pending'},variableModes:{status:'pending',entries:[],omitted:0}};
+    const cache=options.variableCache,limit=Number.isFinite(options.variableLimit)?Math.max(1,Math.min(64,Math.trunc(options.variableLimit))):8;
+    const timeoutMs=Number.isFinite(options.readTimeoutMs)?Math.max(50,Math.min(8000,options.readTimeoutMs)):4000;
+    async function library(key,read){
+      const cached=cache?.get?.(key);if(cached&&cached.expiresAt>Date.now())return cached.result;
+      const result=await read();
+      if(result.status==='ok'&&cache?.set){if(cache.size>=256)cache.delete(cache.keys().next().value);cache.set(key,{result,expiresAt:Date.now()+5000});}
+      return result;
+    }
+    async function style(id,type){
+      if(id==='[mixed-or-symbol]')return{status:'mixed'};
+      if(typeof id!=='string'||!id)return{status:'none'};
+      return library(`style:${id}`,async()=>{
+        const result=await readAsync(api,'getStyleByIdAsync',[id]);
+        if(result.status==='ok'){
+          const value=result.value;
+          if(!value||safeRead(value,'type')!==type)return{status:'unavailable'};
+          result.value={};
+          for(const key of ['id','name','type','fontName','fontSize','fontWeight','lineHeight','letterSpacing','boundVariables']){
+            const item=safeRead(value,key);if(item!==undefined)result.value[key]=plain(item);
+          }
+        }
+        return result;
+      });
+    }
+    const collectionIds=new Set(),pendingModes=[];
+    function collection(id){
+      if(typeof id!=='string'||!id||collectionIds.has(id))return;
+      collectionIds.add(id);if(collectionIds.size>16){partial.variableModes.omitted++;return;}
+      const entry={id,status:'pending',explicit:typeof fields.explicitVariableModes?.[id]==='string'};partial.variableModes.entries.push(entry);
+      pendingModes.push((async()=>{
+        const result=await library(`collection:${id}`,async()=>{
+          const record=await readAsync(safeRead(api,'variables'),'getVariableCollectionByIdAsync',[id]);
+          if(record.status==='ok'){
+            const value=record.value,modes=safeRead(value,'modes');
+            record.value=value?{name:plain(safeRead(value,'name')),defaultModeId:plain(safeRead(value,'defaultModeId')),modes:Array.isArray(modes)?modes.slice(0,64).map(mode=>({modeId:plain(safeRead(mode,'modeId')),name:plain(safeRead(mode,'name'))})):[]}:null;
+          }
+          return record;
+        });
+        entry.status=result.status;
+        if(result.status==='ok'&&result.value){
+          entry.collectionName=result.value.name;
+          entry.modeId=fields.resolvedVariableModes?.[id]||fields.explicitVariableModes?.[id]||result.value.defaultModeId;
+          entry.modeName=result.value.modes.find(mode=>mode.modeId===entry.modeId)?.name;
+          if(!entry.modeName)entry.status='unavailable';
+        }else if(result.status==='ok')entry.status='unavailable';
+      })());
+    }
+    for(const id of [...Object.keys(fields.resolvedVariableModes||{}),...Object.keys(fields.explicitVariableModes||{})])collection(id);
+    const work=(async()=>{
+      const textStyleTask=style(fields.textStyleId,'TEXT').then(value=>partial.textStyle=value);
+      const paintStyleTask=style(fields.fillStyleId,'PAINT').then(value=>partial.paintStyle=value);
+      const variablesTask=baseVariables.then(value=>partial.variables=value);
+      await Promise.all([textStyleTask,paintStyleTask,variablesTask]);
+      const fonts=Object.fromEntries(['fontFamily','fontStyle','fontWeight','fontSize','lineHeight','letterSpacing'].map(key=>[key,fields.boundVariables?.[key]]));
+      const ids=[...variableIds({fills:fields.fills,strokes:fields.strokes,fonts,style:partial.textStyle.value?.boundVariables,node:fields.boundVariables,effects:fields.effects})];
+      partial.variables=await Promise.all(ids.slice(0,limit).map(readVariable));
+      partial.variableCoverage={aliasesInSnapshot:ids.length,checked:partial.variables.length,omitted:Math.max(0,ids.length-partial.variables.length)};
+      for(const record of partial.variables)collection(record.value?.variableCollectionId);
+      await Promise.all(pendingModes);
+      partial.variableModes.status=partial.variableModes.entries.some(entry=>entry.status!=='ok')?'partial':'ok';
+    })();
+    let timer,status='ok';
+    try{await Promise.race([work,new Promise(resolve=>{timer=setTimeout(()=>{status='timeout';resolve();},timeoutMs);})]);}
+    catch{status='error';}
+    finally{clearTimeout(timer);}
+    // Each library value is already bounded. Only mode entries can still mutate
+    // after the deadline; copying the full result through plain() would cut the
+    // 32-variable budget to its generic 20-item array limit.
+    const result={...partial,textStyle:{...partial.textStyle},paintStyle:{...partial.paintStyle},variableModes:{...partial.variableModes,entries:partial.variableModes.entries.map(entry=>({...entry}))}};
+    for(const key of ['textStyle','paintStyle'])if(result[key].status==='pending')result[key].status=status==='ok'?'unavailable':status;
+    if(result.variableModes.status==='pending')result.variableModes.status=status;
+    for(const entry of result.variableModes.entries)if(entry.status==='pending')entry.status=status==='ok'?'unavailable':status;
+    return result;
+  }
   async function nodeSnapshot(node, api) {
     const {fields,errors} = nodeFields(node);
     const cssTask = readAsync(node, 'getCSSAsync');
     const componentTask = fields.type === 'INSTANCE' ? readAsync(node, 'getMainComponentAsync') : ['COMPONENT','COMPONENT_SET'].includes(fields.type) ? Promise.resolve({status:'ok',value:node}) : Promise.resolve({status:'not-instance'});
     // Prioritize visible paint bindings before effects, which can contain many aliases.
-    const bindings = { fills: fields.fills, strokes: fields.strokes, node: fields.boundVariables, effects:fields.effects };
+    const fontBindings=fields.type==='TEXT'?Object.fromEntries(['fontFamily','fontStyle','fontWeight','fontSize','lineHeight','letterSpacing'].map(key=>[key,fields.boundVariables?.[key]])):null;
+    const bindings = { fills: fields.fills, strokes: fields.strokes, fonts:fontBindings, node: fields.boundVariables, effects:fields.effects };
     const aliases = [...variableIds(bindings)];
     const variablesApi = safeRead(api, 'variables');
     const variableLimit = Number.isFinite(options.variableLimit) ? Math.max(1,Math.min(64,Math.trunc(options.variableLimit))) : 8;
     const cache = options.variableCache;
-    const variablesTask = Promise.all(aliases.slice(0, variableLimit).map(async id => {
+    async function readVariable(id){
       const cached = cache?.get?.(id);
       if (cached && cached.expiresAt > Date.now()) return cached.result;
       const result = await readAsync(variablesApi, 'getVariableByIdAsync', [id]);
@@ -185,8 +263,11 @@ export async function probeFigmaPage(options = {}) {
         cache.set(id,{expiresAt:Date.now()+5000,result:record});
       }
       return record;
-    }));
-    const [css, component, variables] = await Promise.all([cssTask, componentTask, variablesTask]);
+    }
+    const variablesTask=Promise.all(aliases.slice(0,variableLimit).map(readVariable));
+    const typographyTask=fields.type==='TEXT'?typographySnapshot(api,fields,variablesTask,readVariable):Promise.resolve(null);
+    const [css, component, baseVariables, typography] = await Promise.all([cssTask, componentTask, variablesTask,typographyTask]);
+    const variables=typography?.variables||baseVariables;
     if (css.status === 'ok') {
       const cssStringLimit = 16384;
       const properties = Object.keys(css.value || {});
@@ -223,12 +304,12 @@ export async function probeFigmaPage(options = {}) {
         propertyDefinitions:plain(safeRead(set||main,'componentPropertyDefinitions'))
       } : null;
     }
-    return { fields, css, component, variables, variableCoverage: { aliasesInSnapshot:aliases.length, checked:variables.length, omitted:Math.max(0, aliases.length - variables.length) }, errors };
+    return { fields, css, component, variables, ...(typography?{textStyle:typography.textStyle,paintStyle:typography.paintStyle,variableModes:typography.variableModes}:{}), variableCoverage:typography?.variableCoverage||{ aliasesInSnapshot:aliases.length, checked:variables.length, omitted:Math.max(0, aliases.length - variables.length) }, errors };
   }
   const resolved = resolveApi();
   const api = resolved.value;
   const selection = selectionOf(api);
-  const nodes = action === 'fast' ? selection.nodes.map(node => ({...nodeFields(node),css:{status:'pending'},component:{status:'pending'},variables:[]})) : await Promise.all(selection.nodes.map(node => nodeSnapshot(node, api)));
+  const nodes = action === 'fast' ? selection.nodes.map(node => ({...nodeFields(node),css:{status:'pending'},component:{status:'pending'},textStyle:{status:'pending'},variables:[]})) : await Promise.all(selection.nodes.map(node => nodeSnapshot(node, api)));
   function makeReport(current, capturedNodes, reason) {
     const pluginId = safeRead(api, 'pluginId');
     const readable = capturedNodes.some(node => typeof node.fields.id === 'string' && typeof node.fields.name === 'string' && Number.isFinite(node.fields.width) && Number.isFinite(node.fields.height));

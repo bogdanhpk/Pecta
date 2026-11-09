@@ -337,3 +337,27 @@ test('remote components without ancestry do not borrow the current file name as 
   const result=(await environment({root:{name:'Current project'},currentPage:{selection:[selected]}}).run({action:'snapshot',stateless:true})).nodes[0].component.value;
   assert.equal(result.sourceName,null);assert.equal(result.remote,true);
 });
+
+test('text inspection reads linked styles, inherited variable modes and style tokens with a bounded cache',async()=>{
+ const aliases={fontFamily:'family',fontWeight:'weight',fontSize:'size',lineHeight:'line',letterSpacing:'spacing'};
+ let styleCalls=0,collectionCalls=0,variableCalls=0;
+ const selected=layer({type:'TEXT',fontName:{family:'Inter',style:'Regular'},fontWeight:400,fontSize:14,lineHeight:{unit:'PIXELS',value:20},letterSpacing:{unit:'PIXELS',value:0},textStyleId:'style:text',fillStyleId:'style:color',openTypeFeatures:{ZERO:true},resolvedVariableModes:{typography:'base',colors:'light'},explicitVariableModes:{colors:'light'}});
+ const api={currentPage:{selection:[selected]},getStyleByIdAsync:async id=>{styleCalls++;return id==='style:color'?{id,type:'PAINT',name:'Foreground/Contrast'}:{id,type:'TEXT',name:'Text/Normal',fontName:selected.fontName,fontSize:14,lineHeight:selected.lineHeight,letterSpacing:selected.letterSpacing,boundVariables:Object.fromEntries(Object.entries(aliases).map(([key,value])=>[key,{type:'VARIABLE_ALIAS',id:value}]))};},variables:{getVariableByIdAsync:async id=>{variableCalls++;return{id,name:`typography/text/normal/${id}`,resolvedType:id==='family'?'STRING':'FLOAT',variableCollectionId:'typography',valuesByMode:{base:400}};},getVariableCollectionByIdAsync:async id=>{collectionCalls++;return{id,name:id==='typography'?'Typography':'Color Styles',defaultModeId:id==='typography'?'base':'light',modes:[{modeId:id==='typography'?'base':'light',name:id==='typography'?'Mode 1':'Light Mode'}]};}}};
+ const {run}=environment(api),options={stateless:true,variableLimit:32,variableCache:new Map()};
+ const result=(await run(options)).nodes[0];assert.equal(result.textStyle.value.name,'Text/Normal');assert.equal(result.paintStyle.value.name,'Foreground/Contrast');assert.equal(result.variables.length,5);assert.equal(result.variableModes.entries[0].modeName,'Mode 1');assert.equal(result.variableModes.entries[0].explicit,false);assert.equal(result.variableModes.entries[1].explicit,true);assert.equal(result.fields.openTypeFeatures.ZERO,true);
+ await run(options);assert.equal(styleCalls,2);assert.equal(collectionCalls,2);assert.equal(variableCalls,5);
+});
+test('text metadata limits collection reads and returns usable partial data within the read deadline',async()=>{
+ let collections=0;
+ const selected=layer({type:'TEXT',fontSize:14,textStyleId:'slow',resolvedVariableModes:Object.fromEntries(Array.from({length:20},(_,index)=>[`collection${index}`,'base']))});
+ const api={currentPage:{selection:[selected]},getStyleByIdAsync:async()=>{await delay(180);return{id:'slow',type:'TEXT',name:'Late style'};},variables:{getVariableCollectionByIdAsync:async id=>{collections++;return{name:id,defaultModeId:'base',modes:[{modeId:'base',name:'Mode 1'}]};}}};
+ const {run}=environment(api);const started=Date.now(),result=(await run({stateless:true,readTimeoutMs:50})).nodes[0];
+ assert.equal(collections,16);assert.equal(result.variableModes.omitted,4);assert.equal(result.textStyle.status,'timeout');assert.equal(result.fields.fontSize,14);assert.ok(Date.now()-started<170);
+});
+test('text metadata preserves the variable budget and already bounded alias values',async()=>{
+ const selected=layer({type:'TEXT',boundVariables:Object.fromEntries(Array.from({length:24},(_,index)=>[`property${index}`,{type:'VARIABLE_ALIAS',id:`variable${index}`}]))});
+ const api={currentPage:{selection:[selected]},variables:{getVariableByIdAsync:async id=>({id,name:id,valuesByMode:{base:{type:'VARIABLE_ALIAS',id:'underlying'}}})}};
+ const result=(await environment(api).run({stateless:true,variableLimit:32})).nodes[0];
+ assert.equal(result.variables.length,24);assert.equal(result.variableCoverage.checked,24);assert.equal(result.variableCoverage.omitted,0);
+ assert.deepEqual(result.variables[23].value.valuesByMode.base,{type:'VARIABLE_ALIAS',id:'underlying'});
+});

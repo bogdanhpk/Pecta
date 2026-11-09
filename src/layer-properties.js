@@ -1,5 +1,6 @@
 import {numberText,colorText} from './format.js';
 import {lengthValue} from './units.js';
+import {textStyleBindings,textColor,textTypography} from './typography.js';
 
 export function layerRadii(fields){
   return Object.fromEntries([['tl','topLeftRadius'],['tr','topRightRadius'],['br','bottomRightRadius'],['bl','bottomLeftRadius']].map(([corner,key])=>{
@@ -8,11 +9,12 @@ export function layerRadii(fields){
   }));
 }
 
-export function layerPropertyGroups(node,unit='px'){
+export function layerPropertyGroups(node,unit='px',colorFormat='hex'){
   const f=node.fields,groups=[];
   const fmt=value=>numberText(lengthValue(value,unit),unit==='rem'?6:2);
   const dimension=value=>Number.isFinite(value)?`${fmt(value)}${unit}`:numberText(value);
   const resolved=new Map((node.variables||[]).filter(record=>record.status==='ok'&&record.value?.name).map(record=>[record.id,record.value]));
+  const styleBindings=f.type==='TEXT'?textStyleBindings(node):{};
   function aliases(value,ids=new Set(),depth=0){
     if(!value||typeof value!=='object'||depth>7)return ids;
     if(value.type==='VARIABLE_ALIAS'&&typeof value.id==='string')ids.add(value.id);
@@ -21,13 +23,13 @@ export function layerPropertyGroups(node,unit='px'){
   }
   function group(id,title){const result={id,title,rows:[]};groups.push(result);return result;}
   function add(target,id,label,value,{bindings=[id],extra,indent=false,heading=false,swatch,copy=value}={}){
-    const ids=new Set();for(const key of bindings)aliases(f.boundVariables?.[key],ids);aliases(extra,ids);
+    const ids=new Set();for(const key of bindings)aliases(f.boundVariables?.[key]??styleBindings[key],ids);aliases(extra,ids);
     const tokens=[...ids].map(key=>resolved.get(key)).filter(Boolean).map(variable=>({id:variable.id,name:variable.name,type:variable.resolvedType}));
     target.rows.push({id,label,value,tokens,indent,heading,swatch,copy});
   }
   function length(target,id,label,options={}){add(target,id,label,dimension(f[id]),{...options,copy:Number.isFinite(f[id])?dimension(f[id]):null});}
   const layout=group('layout','Layout');
-  const auto=['HORIZONTAL','VERTICAL','GRID'].includes(f.layoutMode);
+  const auto=f.type!=='TEXT'&&['HORIZONTAL','VERTICAL','GRID'].includes(f.layoutMode);
   function sizingMode(axis,key){
     const explicit={FILL:'Fill',HUG:'Hug',FIXED:'Fixed'}[f[key]];if(explicit)return explicit;
     const parentFlow=f.parent?.layoutMode;
@@ -69,6 +71,7 @@ export function layerPropertyGroups(node,unit='px'){
   if(typeof f.clipsContent==='boolean')add(layout,'clipsContent','Clip content',f.clipsContent?'Yes':'No');
   if(f.overflowDirection&&f.overflowDirection!=='NONE')add(layout,'overflowDirection','Overflow',f.overflowDirection.toLowerCase().replaceAll('_',' '));
   for(const [key,title] of [['fills','Fill'],['strokes','Stroke']]){
+    if(f.type==='TEXT'&&key==='fills')continue;
     const paints=Array.isArray(f[key])?f[key].filter(paint=>paint.visible!==false):[];
     if(!paints.length)continue;
     const target=group(key,title);
@@ -93,17 +96,37 @@ export function layerPropertyGroups(node,unit='px'){
     });
   }
   if(f.type==='TEXT'){
-    const target=group('typography','Typography');
-    add(target,'fontFamily','Font',f.fontName&&typeof f.fontName==='object'?f.fontName.family:'Смешано',{bindings:['fontFamily']});
+    const target=group('typography','Typography'),model=textTypography(node,unit);
+    add(target,'textStyleName','Name',model.styleName||(node.textStyle?.status==='mixed'?'Смешано':'—'),{bindings:[],copy:model.styleName});
+    const family=f.fontName&&typeof f.fontName==='object'?f.fontName.family:f.fontName==='[mixed-or-symbol]'?'Смешано':'—';
+    add(target,'fontFamily','Font',family,{copy:typeof f.fontName?.family==='string'?family:null});
+    if(f.fontWeight!==undefined)add(target,'fontWeight','Weight',Number.isFinite(f.fontWeight)?String(f.fontWeight):numberText(f.fontWeight),{copy:Number.isFinite(f.fontWeight)?String(f.fontWeight):null});
     if(f.fontName?.style)add(target,'fontStyle','Style',f.fontName.style);
-    if(Number.isFinite(f.fontWeight))add(target,'fontWeight','Weight',String(f.fontWeight));
-    length(target,'fontSize','Size');
-    for(const [id,label] of [['lineHeight','Line height'],['letterSpacing','Letter spacing']]){
-      const value=f[id];add(target,id,label,value?.unit==='AUTO'?'Auto':value?.unit==='PERCENT'?`${numberText(value.value)}%`:dimension(value?.value??value));
-    }
+    add(target,'fontSize','Size',model.fontLabel,{copy:model.fontCopy||null});
+    add(target,'lineHeight','Line height',model.lineLabel,{copy:model.lineCopy||null});
+    const spacing=f.letterSpacing,spacingValue=spacing?.unit==='PERCENT'?`${numberText(spacing.value)}%`:dimension(spacing?.value??spacing);
+    add(target,'letterSpacing','Letter spacing',spacingValue,{copy:Number.isFinite(spacing?.value??spacing)?spacingValue:null});
+    if(f.openTypeFeatures==='[mixed-or-symbol]')add(target,'numericZero','Numeric zero','Смешано',{bindings:[],copy:null});
+    else if(typeof f.openTypeFeatures?.ZERO==='boolean')add(target,'numericZero','Numeric zero',f.openTypeFeatures.ZERO?'Slashed':'Normal',{bindings:[]});
     if(f.textAlignHorizontal)add(target,'textAlignHorizontal','Align',f.textAlignHorizontal.toLowerCase());
     if(f.textDecoration&&f.textDecoration!=='NONE')add(target,'textDecoration','Decoration',f.textDecoration.toLowerCase());
     if(f.textCase&&f.textCase!=='ORIGINAL')add(target,'textCase','Case',f.textCase.toLowerCase().replaceAll('_',' '));
+    const entries=node.variableModes?.entries||[];
+    if(entries.length){
+      const modes=group('modes','Modes');
+      for(const entry of entries)add(modes,`mode.${entry.id}`,entry.collectionName||'Коллекция недоступна',entry.modeName?(entry.explicit?entry.modeName:`Auto (${entry.modeName})`):'Режим недоступен',{bindings:[],copy:entry.modeName||null});
+      if(node.variableModes.omitted)add(modes,'modes.omitted','Ещё коллекций',String(node.variableModes.omitted),{bindings:[],copy:null});
+    }
+    const paints=Array.isArray(f.fills)?f.fills.filter(paint=>paint.visible!==false):[];
+    if(paints.length){
+      const colors=group('colors','Colors');colors.colorFormat=true;
+      paints.forEach((paint,index)=>{
+        const color=textColor(paint,colorFormat),styleName=paints.length===1&&node.paintStyle?.status==='ok'?node.paintStyle.value?.name:null;
+        add(colors,`textColor.${index}`,paints.length===1?'Text colors':`Text color ${index+1}`,styleName||color?.value||colorText(paint),{bindings:['fills'],extra:paint.boundVariables,copy:styleName||color?.value||null});
+        colors.rows.at(-1).color=color;
+      });
+    }
+    const order={layout:0,typography:1,modes:2,colors:3};groups.sort((a,b)=>(order[a.id]??4)-(order[b.id]??4));
   }
   return groups;
 }

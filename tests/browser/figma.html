@@ -14,5 +14,26 @@
  componentSet.children=[defaultComponent,hoverComponent];componentSet.defaultVariant=defaultComponent;
  window.makeNode=(overrides={})=>({id:'3:1',name:'Button / Subscribe',type:'INSTANCE',x:264,y:184,rotation:0,get relativeTransform(){return [[1,0,this.x],[0,1,this.y]];},width:216,height:40,layoutMode:'HORIZONTAL',itemSpacing:8,paddingLeft:16,paddingRight:16,paddingTop:10,paddingBottom:10,cornerRadius:8,opacity:1,strokes:[],strokeWeight:0,strokeAlign:'INSIDE',strokesIncludedInLayout:false,parent:frame,fills:[{type:'SOLID',color:{r:.3,g:.2,b:.8},boundVariables:{color:{type:'VARIABLE_ALIAS',id:'var:color'}}}],boundVariables:{itemSpacing:{type:'VARIABLE_ALIAS',id:'var:space'}},componentProperties:{'Text#3:7':{type:'TEXT',value:'Subscribe'},'Icon#3:8':{type:'BOOLEAN',value:true}},variantProperties:{Size:'Medium',State:'Default'},getCSSAsync:async function(){if(this.slow)await new Promise(r=>setTimeout(r,1100));return {display:'flex',width:this.width+'px',height:this.height+'px',padding:this.paddingTop+'px '+this.paddingLeft+'px','align-items':'center',gap:'var(--space-2, 8px)','border-radius':'var(--radius-md, 8px)',background:'var(--bg-brand, #4D33CC)'}},exportAsync:previewPng,getMainComponentAsync:async()=>defaultComponent,...overrides});
  window.figma={currentPage:{selection:[makeNode()]},variables:{getVariableByIdAsync:async id=>({name:id==='var:space'?'spacing/2':id==='var:radius'?'border-radius':id==='var:padding'?'size/xs':'Background/Brand',resolvedType:id==='var:color'?'COLOR':'FLOAT'})}};
+ window.makeTextNode=()=>makeNode({id:'text-reference',type:'TEXT',name:'Subheading',characters:'Subheading',width:312,height:20,layoutMode:undefined,cornerRadius:undefined,layoutSizingHorizontal:'FILL',layoutSizingVertical:'HUG',fontName:{family:'Inter',style:'Regular'},fontWeight:400,fontSize:14,lineHeight:{unit:'PIXELS',value:20},letterSpacing:{unit:'PIXELS',value:0},textStyleId:'text:normal',fillStyleId:'paint:foreground',openTypeFeatures:{ZERO:true},componentProperties:undefined,variantProperties:undefined,boundVariables:{},fills:[{type:'SOLID',color:{r:30/255,g:32/255,b:44/255}}],resolvedVariableModes:{typography:'base',palette:'base',engineering:'base',colors:'light'},explicitVariableModes:{}});
+ const textBindings=Object.fromEntries(['fontFamily','fontWeight','fontSize','lineHeight','letterSpacing'].map(key=>[key,{type:'VARIABLE_ALIAS',id:'textvar:'+key}]));
+ figma.getStyleByIdAsync=async id=>id==='text:normal'?{id,type:'TEXT',name:'Text/Normal',fontName:{family:'Inter',style:'Regular'},fontSize:14,lineHeight:{unit:'PIXELS',value:20},letterSpacing:{unit:'PIXELS',value:0},boundVariables:textBindings}:{id,type:'PAINT',name:'Foreground/Contrast'};
+ const baseVariable=figma.variables.getVariableByIdAsync;
+ figma.variables.getVariableByIdAsync=async id=>id.startsWith('textvar:')?{id,name:'typography/text/normal/'+id.slice(8),resolvedType:id==='textvar:fontFamily'?'STRING':'FLOAT',variableCollectionId:'typography',valuesByMode:{base:id==='textvar:fontWeight'?400:0}}:baseVariable(id);
+ figma.variables.getVariableCollectionByIdAsync=async id=>({id,name:{typography:'Typography',palette:'Palette',engineering:'Engineering',colors:'Color Styles'}[id]||id,defaultModeId:id==='colors'?'light':'base',modes:[{modeId:id==='colors'?'light':'base',name:id==='colors'?'Light Mode':'Mode 1'},{modeId:'dark',name:'Dark Mode'}]});
  frame.children=[window.figma.currentPage.selection[0]];
+
+ window.assetExports=0;
+ window.makeResourcesNode=()=>{
+   const palette=[['Foreground/Contrast',[30,32,44],1],['Icon/Contrast-fade',[139,142,168],1],['Line/Contrast-fade',[197,198,210],1],['Background/Transparent',[255,0,255],0],['Background/Bg',[255,255,255],1]];
+   const styles=palette.map(([name,rgb,opacity],index)=>({id:'selection-style:'+index,name,paints:[{type:'SOLID',opacity,color:{r:rgb[0]/255,g:rgb[1]/255,b:rgb[2]/255}}]}));
+   const root=makeNode({id:'resources-reference',type:'FRAME',name:'Info / Default',width:312,height:40,componentProperties:undefined,variantProperties:undefined,children:[],selectionColors:{paints:[],styles}});
+   const icon={id:'info-icon',type:'INSTANCE',name:'circle-info_16',width:16,height:16,isAsset:true,parent:root,fills:[styles[1].paints[0]],exportAsync:async settings=>{
+     window.assetExports++;
+     const svg='<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><circle cx="8" cy="8" r="8" fill="#8B8EA8"/><path d="M8 7v5 M8 4v1" stroke="white" stroke-width="2"/></svg>';
+     if(settings.format==='SVG')return new TextEncoder().encode(svg);
+     const canvas=document.createElement('canvas');canvas.width=32;canvas.height=32;const ctx=canvas.getContext('2d');ctx.fillStyle='#8B8EA8';ctx.beginPath();ctx.arc(16,16,16,0,Math.PI*2);ctx.fill();ctx.fillStyle='white';ctx.font='bold 24px system-ui';ctx.textAlign='center';ctx.fillText('i',16,25);
+     return new Uint8Array(await (await new Promise(resolve=>canvas.toBlob(resolve,'image/png'))).arrayBuffer());
+   }};root.children=[icon];return root;
+ };
+ figma.getSelectionColors=()=>figma.currentPage.selection[0]?.selectionColors||null;
  </script></html>
