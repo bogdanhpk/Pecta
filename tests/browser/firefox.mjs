@@ -63,6 +63,14 @@ try {
  assert.equal(await evaluate(updatesPage,"document.querySelector('#download').getAttribute('href')"),`https://github.com/bogdanhpk/Pecta/releases/download/v${futureVersion}/pecta-mode-${futureVersion}-firefox.zip`);
  assert.match(await evaluate(updatesPage,"document.querySelector('#instructions').textContent"),/about:debugging/);
  await cmd('browsingContext.close',{context:updatesPage});await cmd('browsingContext.activate',{context:fixture});
+ assert.equal(await evaluate(fixture,`${root}.querySelector('.menu').textContent.includes('Диагностика доступа')`),false);
+ assert.equal(await evaluate(fixture,`${root}.querySelector('.menu a[href$="about.html"]').textContent`),'О Pecta');
+ const aboutPage=(await cmd('browsingContext.create',{type:'tab'})).context;
+ await cmd('browsingContext.navigate',{context:aboutPage,url:`moz-extension://${uuid}/about.html`,wait:'complete'});
+ assert.equal(await evaluate(aboutPage,"document.querySelector('#creator-name').textContent"),'Богдан Хтоминский');
+ assert.equal(await evaluate(aboutPage,"document.querySelector('#installed').textContent"),`Версия ${manifest.version}`);
+ await cmd('browsingContext.close',{context:aboutPage});await cmd('browsingContext.activate',{context:fixture});
+
 
  assert.equal(await evaluate(fixture,`${root}.querySelectorAll('.css-line').length`),8);
  assert.ok(await evaluate(fixture,`${root}.querySelectorAll('.css-value').length>0`));

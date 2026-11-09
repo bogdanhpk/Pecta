@@ -16,7 +16,7 @@ const manifest = {
   action: { default_title: 'Pecta Mode — откройте доступный макет Figma', default_popup: 'launcher.html',default_icon:defaultIcon },
   content_scripts:[{matches:['https://www.figma.com/*','https://figma.com/*'],js:['availability.js'],run_at:'document_idle',all_frames:false}],
   options_ui: { page:'popup.html', open_in_tab:true },
-  web_accessible_resources: [{resources:['popup.html','updates.html'],matches:['https://www.figma.com/*','https://figma.com/*']}]
+  web_accessible_resources: [{resources:['popup.html','updates.html','about.html'],matches:['https://www.figma.com/*','https://figma.com/*']}]
 };
 
 const updateService=await readFile(path.join(root,'src/updates.js'),'utf8');

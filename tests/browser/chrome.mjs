@@ -47,7 +47,16 @@ try {
  assert.equal(await updatesPage.locator('#download').getAttribute('href'),`https://github.com/bogdanhpk/Pecta/releases/download/v${futureVersion}/pecta-mode-${futureVersion}-chrome.zip`);
  assert.match(await updatesPage.locator('#instructions').textContent(),/chrome:\/\/extensions/);
  assert.match(await updatesPage.locator('#installed').textContent(),new RegExp(manifest.version.replaceAll('.','\\.')));
- await updatesPage.screenshot({path:dir+'/updates.png'});await updatesPage.close();await fixture.bringToFront();await fixture.locator('.header details>summary').click();
+ await updatesPage.screenshot({path:dir+'/updates.png'});await updatesPage.close();await fixture.bringToFront();
+ assert.equal(await fixture.locator('.menu a').filter({hasText:'Диагностика доступа'}).count(),0);
+ const [aboutPage]=await Promise.all([context.waitForEvent('page'),fixture.getByRole('link',{name:'О Pecta',exact:true}).click()]);
+ await aboutPage.getByRole('heading',{name:'О Pecta',exact:true}).waitFor();
+ assert.equal(await aboutPage.locator('#creator-name').textContent(),'Богдан Хтоминский');
+ assert.equal(await aboutPage.locator('#installed').textContent(),`Версия ${manifest.version}`);
+ assert.equal(await aboutPage.getByRole('link',{name:'GitHub создателя'}).getAttribute('href'),'https://github.com/bogdanhpk');
+ await aboutPage.emulateMedia({colorScheme:'light'});await aboutPage.screenshot({path:dir+'/about-light.png'});
+ await aboutPage.emulateMedia({colorScheme:'dark'});await aboutPage.screenshot({path:dir+'/about-dark.png'});
+ await aboutPage.close();await fixture.bringToFront();await fixture.locator('.header details>summary').click();
  const layout=await fixture.locator('.panel').evaluate(panel=>({top:panel.getBoundingClientRect().top,bottom:panel.getBoundingClientRect().bottom,height:innerHeight,font:getComputedStyle(panel).fontFamily,size:getComputedStyle(panel).fontSize,weight:getComputedStyle(panel).fontWeight}));
  assert.equal(layout.top,0);assert.equal(layout.bottom,layout.height);assert.match(layout.font,/Pecta Inter/);assert.equal(layout.size,'12px');assert.equal(layout.weight,'400');
  assert.match(await fixture.locator('.section-title').first().evaluate(e=>getComputedStyle(e).fontFamily),/Pecta Inter/);

@@ -76,10 +76,10 @@ export async function mountInspector(config, styles, icons, interFont) {
   const header=el('header','header');const mark=el('span','brand-mark');mark.append(icon('stack-simple'));
   const menu=el('details');const menuSummary=el('summary','icon-button');menuSummary.title='Настройки';menuSummary.setAttribute('aria-label','Настройки');menuSummary.append(icon('dots-three'));
   const menuItems=el('div','menu');const retry=el('button','','Обновить свойства');retry.type='button';retry.onclick=()=>{send('refresh');menu.open=false;};
-  const diagnostics=el('a','','Диагностика доступа');diagnostics.href=api.runtime.getURL(`popup.html?tabId=${config.targetTabId}`);diagnostics.target='_blank';diagnostics.rel='noopener noreferrer';
+  const about=el('a','','О Pecta');about.href=api.runtime.getURL('about.html');about.target='_blank';about.rel='noopener noreferrer';
   const updatesLink=el('a','','Проверить обновления');updatesLink.href=api.runtime.getURL('updates.html');updatesLink.target='_blank';updatesLink.rel='noopener noreferrer';
   void api.runtime.sendMessage({type:'pecta:updates-check'}).then(result=>{if(!closed&&result?.status==='available')updatesLink.textContent=`Обновить до ${result.latestVersion}`;}).catch(()=>{});
-  menuItems.append(retry,updatesLink,diagnostics,el('span','version',`Pecta ${config.extensionVersion}`));menu.append(menuSummary,menuItems);
+  menuItems.append(retry,updatesLink,about,el('span','version',`Pecta ${config.extensionVersion}`));menu.append(menuSummary,menuItems);
   const closeButton=iconButton('x','Закрыть Pecta Mode');header.append(mark,el('strong','brand','Pecta Mode'),menu,closeButton);
   const scroll=el('div','scroll');const empty=el('div','empty');const emptyIcon=el('div','empty-icon');
   const selectionIcon=el('span','selection-icon');selectionIcon.append(icon('stack-simple'));
