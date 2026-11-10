@@ -38,6 +38,16 @@ const updateNoticeUI=(await readFile(path.join(root,'src/update-notice-ui.js'),'
 const ui = (await readFile(path.join(root,'src/inspector-ui.js'),'utf8')).replace('export async function','async function');
 const styles = await readFile(path.join(root,'src/inspector.css'),'utf8');
 const icons = await readFile(path.join(root,'src/assets/icons.json'),'utf8');
+// Embed the same trusted logo geometry in the launcher and inspector, without a runtime fetch.
+const iconData=JSON.parse(icons);
+function svgMarkup(node,overrides={}){
+  const escape=value=>String(value).replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;');
+  const attributes=Object.entries({...node.attrs,...overrides}).map(([name,value])=>`${name}="${escape(value)}"`).join(' ');
+  return `<${node.tag} ${attributes}>${node.children.map(child=>svgMarkup(child)).join('')}</${node.tag}>`;
+}
+const launcher=(await readFile(path.join(root,'src/launcher.html'),'utf8'))
+  .replace('<!-- @pecta:launcher-figma -->',svgMarkup(iconData['figma-logo'],{x:20,y:36,width:16,height:24,class:'connection-logo connection-logo-figma'}))
+  .replace('<!-- @pecta:launcher-pecta -->',svgMarkup(iconData['stack-simple'],{x:186,y:38,width:20,height:20,class:'connection-logo connection-logo-pecta'}));
 const interFont = (await readFile(path.join(root,'src/assets/fonts/InterVariable.woff2'))).toString('base64');
 const bundle = `(() => {\n${units}\n${helpers}\n${highlighter}\n${typographyData}\n${layerData}\n${typographyUI}\n${layerUI}\n${componentUI}\n${resourcesUI}\n${updateNoticeUI}\n${ui}\nvoid mountInspector(globalThis.__PECTA_MODE_LAUNCH__,${JSON.stringify(styles)},${icons},${JSON.stringify(interFont)}).catch(error=>console.error('Pecta panel:',error));\n})();\n`;
 
@@ -50,6 +60,7 @@ for (const browser of ['chrome', 'firefox']) {
   await rm(path.join(destination,'updates.js'));
   await writeFile(path.join(destination,'background.js'),`${updateService}\n${background}`);
   await writeFile(path.join(destination,'mode-entry.js'),bridge);
+  await writeFile(path.join(destination,'launcher.html'),launcher);
   await writeFile(path.join(destination,'inspector-ui.bundle.js'),bundle);
   const targetManifest = browser === 'chrome'
     ? { ...manifest, minimum_chrome_version: '111',background:{service_worker:'background.js'} }

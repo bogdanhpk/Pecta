@@ -86,7 +86,10 @@ export function createLayerProperties({el,icon,copyButton,selectControl,cssSecti
           }else if(row.tokens.length){
             for(const token of row.tokens){
               const button=copyButton(()=>token.name,`Copy ${token.name} · ${row.value}`,false,()=>{
-                const fragment=document.createDocumentFragment();fragment.append(el('span','variable-glyph',token.type==='COLOR'?'◈':token.type==='STRING'?'T':token.type==='BOOLEAN'?'◧':'#'),el('span','variable-name',token.name));return fragment;
+                const fragment=document.createDocumentFragment(),glyph=el('span','variable-glyph');glyph.setAttribute('aria-hidden','true');
+                if(token.type==='STRING'||token.type==='BOOLEAN')glyph.textContent=token.type==='STRING'?'T':'◧';
+                else glyph.append(icon(token.type==='COLOR'?'variable-color':'variable-number'));
+                fragment.append(glyph,el('span','variable-name',token.name));return fragment;
               });
               button.className='property-value variable-chip';button.title=`${token.name} · ${row.value}`;value.append(button);
             }

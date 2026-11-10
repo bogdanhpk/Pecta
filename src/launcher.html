@@ -1,9 +1,26 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pecta Mode</title><link rel="stylesheet" href="popup.css"></head>
-<body>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pecta Mode</title><link rel="stylesheet" href="popup.css"><link rel="stylesheet" href="launcher.css"></head>
+<body class="launcher" data-phase="checking">
   <header><strong>Pecta Mode</strong><span id="version"></span></header>
-  <main><p id="status" role="status">Connecting to Figma…</p><div class="actions"><button id="retry" type="button" hidden>Retry</button><button id="diagnostics" type="button" hidden>Diagnostics</button></div></main>
+  <main>
+    <svg class="connection-art" viewBox="0 0 224 96" fill="none" aria-hidden="true">
+      <path class="connection-wire" d="M52 48H98M126 48H172"/>
+      <g class="connection-signal"><circle cx="58" cy="48" r="2.5"/></g>
+      <g class="connection-plug connection-plug-source"><rect x="84" y="40" width="14" height="16" rx="3"/><path d="M98 44H104M98 52H104"/></g>
+      <g class="connection-plug connection-plug-target"><rect x="120" y="40" width="14" height="16" rx="3"/></g>
+      <g class="connection-wait"><circle cx="105" cy="24" r="1.5"/><circle cx="112" cy="24" r="1.5"/><circle cx="119" cy="24" r="1.5"/></g>
+      <path class="connection-error" d="M108 20L116 28M116 20L108 28M108 68L105 72M118 70L119 74"/>
+      <g class="connection-ready"><circle cx="112" cy="24" r="9"/><path d="M108 24L111 27L117 21"/></g>
+      <circle class="connection-product" cx="28" cy="48" r="24"/>
+      <circle class="connection-product" cx="196" cy="48" r="24"/>
+      <!-- @pecta:launcher-figma -->
+      <!-- @pecta:launcher-pecta -->
+      <text class="connection-label" x="28" y="92">Figma</text><text class="connection-label" x="196" y="92">Pecta</text>
+    </svg>
+    <div class="connection-copy" role="status" aria-live="polite" aria-atomic="true"><p id="status">Connecting to Figma…</p><p id="connection-hint" class="hint">Checking the open design.</p></div>
+    <div class="actions"><button id="retry" type="button" hidden>Retry</button><button id="diagnostics" type="button" hidden>Diagnostics</button></div>
+  </main>
   <script type="module" src="launcher.js"></script>
 </body>
 </html>

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Centered color and number variable symbols inside their frames with SVG icons, including a Figma-style hash mark.
+- Added an illustrated connection flow with Figma and Pecta logos, a joining cable, animated data transfer, and reduced motion support. The illustration follows actual launcher states and stops on errors.
+
 ## 0.3.20
 
 - Replaced the distorted Figma mark with its official monoline vector and reduced both connection-state logos for more space inside their circles.
